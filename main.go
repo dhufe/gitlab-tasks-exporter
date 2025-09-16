@@ -4,20 +4,20 @@ package main
 import (
 	"fmt"
 	"log"
-	"net/http"
 
-	"github.com/hasura/go-graphql-client"
 	"github.com/joho/godotenv"
 )
 
 func main() {
-
 	// Lade .env wenn vorhanden
 	godotenv.Load()
 
 	config := parseFlags()
 	if milestone := getEnv("MILESTONE_TITLE", ""); milestone != "" {
 		config.MilestoneTitle = &milestone
+	}
+	if assignedUser := getEnv("ASSIGNED_USER", ""); assignedUser != "" {
+		config.AssignedUser = &assignedUser
 	}
 
 	if config.Token == "" || config.ProjectPath == "" {
@@ -28,7 +28,14 @@ func main() {
 
 	fmt.Printf("Exportiere Issues aus %s...\n", config.ProjectPath)
 	if config.MilestoneTitle != nil {
-		fmt.Printf("Milestone: %s\n", *config.MilestoneTitle)
+		if *config.MilestoneTitle == "*" {
+			fmt.Println("Alle Milestones")
+		} else {
+			fmt.Printf("Milestone: %s\n", *config.MilestoneTitle)
+		}
+	}
+	if config.AssignedUser != nil {
+		fmt.Printf("Assigned to: %s\n", *config.AssignedUser)
 	}
 
 	issues, err := exporter.GetAllIssues()
@@ -44,26 +51,4 @@ func main() {
 	}
 
 	fmt.Printf("Export abgeschlossen: %s\n", config.OutputFile)
-}
-
-// Korrigierte Version ohne oauth2 (einfacher mit Header)
-func NewGitLabExporter(config Config) *GitLabExporter {
-	httpClient := &http.Client{
-		Transport: &authTransport{
-			token: config.Token,
-			base:  http.DefaultTransport,
-		},
-	}
-
-	client := graphql.NewClient(config.GitLabURL+"/api/graphql", httpClient)
-
-	return &GitLabExporter{
-		client: client,
-		config: config,
-	}
-}
-
-type authTransport struct {
-	token string
-	base  http.RoundTripper
 }

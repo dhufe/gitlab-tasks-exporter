@@ -1,6 +1,6 @@
 package main
 
-import "time"
+import "net/http"
 
 type Config struct {
 	Structured     bool
@@ -9,72 +9,63 @@ type Config struct {
 	ProjectPath    string
 	MilestoneTitle *string
 	OutputFile     string
+	AssignedUser   *string // Neu hinzugefügt
 }
 
-type Label struct {
-	Title       string `graphql:"title"`
-	Color       string `graphql:"color"`
-	Description string `graphql:"description"`
+type authTransport struct {
+	token string
+	base  http.RoundTripper
 }
 
 type User struct {
 	Name     string `graphql:"name"`
 	Username string `graphql:"username"`
-	Email    string `graphql:"email"`
+}
+
+type Label struct {
+	Title string `graphql:"title"`
 }
 
 type Milestone struct {
-	Title       string     `graphql:"title"`
-	Description string     `graphql:"description"`
-	DueDate     *time.Time `graphql:"dueDate"`
-	State       string     `graphql:"state"`
-}
-
-type TimeStats struct {
-	TimeEstimate   int `graphql:"timeEstimate"`
-	TotalTimeSpent int `graphql:"totalTimeSpent"`
-}
-
-type TaskCompletionStatus struct {
-	CompletedCount int `graphql:"completedCount"`
-	Count          int `graphql:"count"`
+	ID          string `graphql:"id"`
+	Title       string `graphql:"title"`
+	Description string `graphql:"description"`
+	DueDate     string `graphql:"dueDate"`
+	State       string `graphql:"state"`
 }
 
 type Issue struct {
-	IID          int        `graphql:"iid"`
-	Title        string     `graphql:"title"`
-	Description  string     `graphql:"description"`
-	State        string     `graphql:"state"`
-	DueDate      *time.Time `graphql:"dueDate"`
-	CreatedAt    time.Time  `graphql:"createdAt"`
-	UpdatedAt    time.Time  `graphql:"updatedAt"`
-	ClosedAt     *time.Time `graphql:"closedAt"`
-	Confidential bool       `graphql:"confidential"`
-	WebURL       string     `graphql:"webUrl"`
-	Weight       *int       `graphql:"weight"`
-	TimeStats    TimeStats  `graphql:"timeStats"`
-	Labels       struct {
-		Nodes []Label `graphql:"nodes"`
-	} `graphql:"labels"`
-	Assignees struct {
+	IID         string     `graphql:"iid"`
+	Title       string     `graphql:"title"`
+	Description string     `graphql:"description"`
+	State       string     `graphql:"state"`
+	DueDate     *string    `graphql:"dueDate"`
+	CreatedAt   string     `graphql:"createdAt"`
+	UpdatedAt   string     `graphql:"updatedAt"`
+	WebURL      string     `graphql:"webUrl"`
+	Milestone   *Milestone `graphql:"milestone"`
+	Assignees   struct {
 		Nodes []User `graphql:"nodes"`
 	} `graphql:"assignees"`
-	Author               User                 `graphql:"author"`
-	Milestone            *Milestone           `graphql:"milestone"`
-	TaskCompletionStatus TaskCompletionStatus `graphql:"taskCompletionStatus"`
+	Labels struct {
+		Nodes []Label `graphql:"nodes"`
+	} `graphql:"labels"`
 }
 
 type PageInfo struct {
-	HasNextPage bool   `graphql:"hasNextPage"`
-	EndCursor   string `graphql:"endCursor"`
+	HasNextPage bool    `graphql:"hasNextPage"`
+	EndCursor   *string `graphql:"endCursor"`
 }
 
-type IssuesQuery struct {
+type ProjectQuery struct {
 	Project struct {
+		Milestones struct {
+			Nodes []Milestone `graphql:"nodes"`
+		} `graphql:"milestones(searchTitle: $milestoneSearch, first: 1)"`
 		Issues struct {
 			Nodes    []Issue  `graphql:"nodes"`
 			PageInfo PageInfo `graphql:"pageInfo"`
-		} `graphql:"issues(first: 100, milestoneTitle: $milestoneTitle, after: $after)"`
+		} `graphql:"issues(first: $first, milestoneTitle: $milestoneTitle, assigneeUsername: $assigneeUsername, after: $after)"`
 	} `graphql:"project(fullPath: $projectPath)"`
 }
 

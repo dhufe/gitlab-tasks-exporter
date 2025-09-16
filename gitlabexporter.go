@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/csv"
 	"fmt"
+	"net/http"
 	"os"
 	"strconv"
 	"strings"
@@ -16,22 +17,52 @@ type GitLabExporter struct {
 	config Config
 }
 
+func NewGitLabExporter(config Config) *GitLabExporter {
+	httpClient := &http.Client{
+		Transport: &authTransport{
+			token: config.Token,
+			base:  http.DefaultTransport,
+		},
+	}
+
+	client := graphql.NewClient(config.GitLabURL+"/api/graphql", httpClient)
+
+	return &GitLabExporter{
+		client: client,
+		config: config,
+	}
+}
+
 func (e *GitLabExporter) GetAllIssues() ([]Issue, error) {
 	var allIssues []Issue
 	var after *string
+	first := 100
 
 	for {
-		var query IssuesQuery
+		var query ProjectQuery
 		variables := map[string]interface{}{
-			"projectPath": graphql.String(e.config.ProjectPath),
+			"projectPath": graphql.ID(e.config.ProjectPath),
+			"first":       graphql.Int(first),
 			"after":       (*graphql.String)(after),
 		}
 
-		if e.config.MilestoneTitle != nil {
+		// Milestone Filter
+		if e.config.MilestoneTitle != nil && *e.config.MilestoneTitle != "" && *e.config.MilestoneTitle != "*" {
+			variables["milestoneSearch"] = graphql.String(*e.config.MilestoneTitle)
 			variables["milestoneTitle"] = []graphql.String{graphql.String(*e.config.MilestoneTitle)}
 		} else {
-			variables["milestoneTitle"] = ([]graphql.String)(nil)
+			variables["milestoneSearch"] = (*graphql.String)(nil)
+			variables["milestoneTitle"] = []graphql.String{}
 		}
+
+		// Assigned User Filter - als einzelner String, nicht Array
+		if e.config.AssignedUser != nil && *e.config.AssignedUser != "" {
+			variables["assigneeUsername"] = graphql.String(*e.config.AssignedUser)
+		} else {
+			variables["assigneeUsername"] = (*graphql.String)(nil)
+		}
+
+		fmt.Printf("Führe GraphQL Query aus... (after: %v)\n", after)
 
 		err := e.client.Query(context.Background(), &query, variables)
 		if err != nil {
@@ -39,16 +70,94 @@ func (e *GitLabExporter) GetAllIssues() ([]Issue, error) {
 		}
 
 		issues := query.Project.Issues.Nodes
+		fmt.Printf("Batch gefunden: %d Issues\n", len(issues))
 		allIssues = append(allIssues, issues...)
 
 		if !query.Project.Issues.PageInfo.HasNextPage {
 			break
 		}
 
-		after = &query.Project.Issues.PageInfo.EndCursor
+		after = query.Project.Issues.PageInfo.EndCursor
+		if after == nil {
+			break
+		}
 	}
 
 	return allIssues, nil
+}
+
+func (e *GitLabExporter) writeStructuredCSV(writer *csv.Writer, issues []Issue) error {
+	milestoneTitle := "GitLab Issues"
+	if e.config.MilestoneTitle != nil {
+		milestoneTitle = *e.config.MilestoneTitle
+	}
+
+	projectRow := []string{
+		"project", milestoneTitle, "", "1", "1", "", "", "", "de", "Europe/Berlin", "",
+	}
+	if err := writer.Write(projectRow); err != nil {
+		return err
+	}
+
+	openIssues := []Issue{}
+	closedIssues := []Issue{}
+
+	for _, issue := range issues {
+		if issue.State == "opened" {
+			openIssues = append(openIssues, issue)
+		} else {
+			closedIssues = append(closedIssues, issue)
+		}
+	}
+
+	if len(openIssues) > 0 {
+		sectionRow := []string{
+			"section", "🔓 Offen", "", "1", "2", "", "", "", "de", "Europe/Berlin", "",
+		}
+		if err := writer.Write(sectionRow); err != nil {
+			return err
+		}
+
+		for _, issue := range openIssues {
+			record := e.convertIssueToTodoistRecord(issue)
+			record.Indent = "3"
+
+			row := []string{
+				record.Type, record.Content, record.Description, record.Priority,
+				record.Indent, record.Author, record.Responsible, record.Date,
+				record.DateLang, record.Timezone, record.Labels,
+			}
+			if err := writer.Write(row); err != nil {
+				return err
+			}
+		}
+	}
+
+	if len(closedIssues) > 0 {
+		sectionRow := []string{
+			"section", "✅ Geschlossen", "", "1", "2", "", "", "", "de", "Europe/Berlin", "",
+		}
+		if err := writer.Write(sectionRow); err != nil {
+			return err
+		}
+
+		for _, issue := range closedIssues {
+			record := e.convertIssueToTodoistRecord(issue)
+			record.Indent = "3"
+
+			row := []string{
+				record.Type, record.Content, record.Description, record.Priority,
+				record.Indent, record.Author, record.Responsible, record.Date,
+				record.DateLang, record.Timezone, record.Labels,
+			}
+
+			if err := writer.Write(row); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
 }
 
 func (e *GitLabExporter) ExportToTodoistCSV(issues []Issue, filename string) error {
@@ -61,7 +170,6 @@ func (e *GitLabExporter) ExportToTodoistCSV(issues []Issue, filename string) err
 	writer := csv.NewWriter(file)
 	defer writer.Flush()
 
-	// Header schreiben
 	header := []string{
 		"TYPE", "CONTENT", "DESCRIPTION", "PRIORITY", "INDENT",
 		"AUTHOR", "RESPONSIBLE", "DATE", "DATE_LANG", "TIMEZONE", "LABELS",
@@ -70,7 +178,10 @@ func (e *GitLabExporter) ExportToTodoistCSV(issues []Issue, filename string) err
 		return fmt.Errorf("fehler beim Schreiben des Headers: %w", err)
 	}
 
-	// Issues schreiben
+	if e.config.Structured {
+		return e.writeStructuredCSV(writer, issues)
+	}
+
 	for _, issue := range issues {
 		record := e.convertIssueToTodoistRecord(issue)
 		row := []string{
@@ -88,29 +199,29 @@ func (e *GitLabExporter) ExportToTodoistCSV(issues []Issue, filename string) err
 }
 
 func (e *GitLabExporter) convertIssueToTodoistRecord(issue Issue) TodoistRecord {
-	// Labels extrahieren
 	var labels []string
 	for _, label := range issue.Labels.Nodes {
 		labels = append(labels, label.Title)
 	}
 
-	// Assignee extrahieren
 	responsible := ""
 	if len(issue.Assignees.Nodes) > 0 {
 		responsible = issue.Assignees.Nodes[0].Name
 	}
 
-	// Priorität bestimmen
-	priority := getTodoistPriority(issue)
+	priority := getTodoistPriority(labels)
 
-	// Erweiterte Beschreibung erstellen
-	description := createEnhancedDescription(issue)
+	var parts []string
+	parts = append(parts, fmt.Sprintf("🔗 GitLab: %s", issue.WebURL))
+	parts = append(parts, fmt.Sprintf("IID: %d", issue.IID))
+	parts = append(parts, fmt.Sprintf("Status: %s", issue.State))
 
-	// Datum formatieren
-	date := ""
-	if issue.DueDate != nil {
-		date = issue.DueDate.Format("2006-01-02")
+	// DueDate einfach als String hinzufügen wenn vorhanden
+	if issue.DueDate != nil && *issue.DueDate != "" {
+		parts = append(parts, fmt.Sprintf("📅 Due: %s", *issue.DueDate))
 	}
+
+	description := strings.Join(parts, " | ")
 
 	return TodoistRecord{
 		Type:        "task",
@@ -120,66 +231,28 @@ func (e *GitLabExporter) convertIssueToTodoistRecord(issue Issue) TodoistRecord 
 		Indent:      "1",
 		Author:      "",
 		Responsible: responsible,
-		Date:        date,
+		Date:        "",
 		DateLang:    "de",
 		Timezone:    "Europe/Berlin",
 		Labels:      strings.Join(labels, ","),
 	}
 }
 
-func getTodoistPriority(issue Issue) int {
-	// Todoist Prioritäten: 1=niedrig, 2=normal, 3=hoch, 4=urgent
-	labelTitles := make([]string, len(issue.Labels.Nodes))
-	for i, label := range issue.Labels.Nodes {
-		labelTitles[i] = strings.ToLower(label.Title)
-	}
-
-	for _, label := range labelTitles {
-		switch {
-		case contains([]string{"urgent", "critical", "blocker"}, label):
+func getTodoistPriority(labels []string) int {
+	for _, label := range labels {
+		switch strings.ToLower(label) {
+		case "urgent", "critical", "blocker", "p1":
 			return 4
-		case contains([]string{"high", "important"}, label):
+		case "high", "important", "p2":
 			return 3
-		case contains([]string{"low", "minor"}, label):
+		case "low", "minor", "p4":
 			return 1
 		}
 	}
-
-	return 2 // normal
+	return 2
 }
 
-func createEnhancedDescription(issue Issue) string {
-	var parts []string
-
-	if issue.Description != "" {
-		parts = append(parts, issue.Description)
-	}
-
-	// GitLab Link hinzufügen
-	parts = append(parts, fmt.Sprintf("\n🔗 GitLab: %s", issue.WebURL))
-
-	// Milestone info
-	if issue.Milestone != nil {
-		parts = append(parts, fmt.Sprintf("📋 Milestone: %s", issue.Milestone.Title))
-	}
-
-	// Weight (falls vorhanden)
-	if issue.Weight != nil {
-		parts = append(parts, fmt.Sprintf("⚖️ Weight: %d", *issue.Weight))
-	}
-
-	// Time tracking
-	if issue.TimeStats.TimeEstimate > 0 || issue.TimeStats.TotalTimeSpent > 0 {
-		parts = append(parts, fmt.Sprintf("⏱️ Time: %dh estimated, %dh spent",
-			issue.TimeStats.TimeEstimate/3600, issue.TimeStats.TotalTimeSpent/3600))
-	}
-
-	return strings.Join(parts, " | ")
-}
-
-// structured_export.go
 func (e *GitLabExporter) ExportToTodoistWithStructure(issues []Issue, filename string) error {
-	// Gruppiere nach Milestone
 	milestoneGroups := make(map[string][]Issue)
 
 	for _, issue := range issues {
@@ -199,7 +272,6 @@ func (e *GitLabExporter) ExportToTodoistWithStructure(issues []Issue, filename s
 	writer := csv.NewWriter(file)
 	defer writer.Flush()
 
-	// Header schreiben
 	header := []string{
 		"TYPE", "CONTENT", "DESCRIPTION", "PRIORITY", "INDENT",
 		"AUTHOR", "RESPONSIBLE", "DATE", "DATE_LANG", "TIMEZONE", "LABELS",
@@ -208,9 +280,7 @@ func (e *GitLabExporter) ExportToTodoistWithStructure(issues []Issue, filename s
 		return err
 	}
 
-	// Für jeden Milestone
 	for milestoneTitle, milestoneIssues := range milestoneGroups {
-		// Projekt erstellen
 		projectRow := []string{
 			"project", milestoneTitle, "", "1", "1", "", "", "", "de", "Europe/Berlin", "",
 		}
@@ -218,10 +288,9 @@ func (e *GitLabExporter) ExportToTodoistWithStructure(issues []Issue, filename s
 			return err
 		}
 
-		// Issues als Tasks hinzufügen
 		for _, issue := range milestoneIssues {
 			record := e.convertIssueToTodoistRecord(issue)
-			record.Indent = "2" // Unter Projekt eingerückt
+			record.Indent = "2"
 
 			row := []string{
 				record.Type, record.Content, record.Description, record.Priority,
