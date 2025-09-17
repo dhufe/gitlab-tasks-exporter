@@ -1,187 +1,94 @@
 package config
 
 import (
-	"bufio"
 	"fmt"
 	"os"
 	"strconv"
 	"strings"
+
+	"github.com/joho/godotenv"
 )
 
 type Config struct {
-	// GitLab
 	GitLabToken    string
 	GitLabURL      string
 	ProjectPath    string
 	MilestoneTitle *string
-
-	// Todoist
 	TodoistToken   string
 	TodoistProject string
 	TodoistAPI     bool
-
-	// Output
-	OutputFile string
-	Verbose    bool
+	OutputFile     string
+	Verbose        bool
 }
 
-// NewConfig erstellt eine neue Konfiguration mit .env-Support
 func NewConfig() (*Config, error) {
+	// .env laden (ignoriere Fehler wenn Datei nicht existiert)
+	if err := godotenv.Load(); err != nil && !os.IsNotExist(err) {
+		fmt.Printf("⚠️  Warnung beim Laden der .env: %v\n", err)
+	}
+
 	cfg := &Config{
-		GitLabURL: "https://gitlab.com", // Default
+		GitLabToken:    getEnv("GITLAB_TOKEN", ""),
+		GitLabURL:      getEnv("GITLAB_URL", "https://gitlab.com"),
+		ProjectPath:    getEnv("PROJECT_PATH", ""),
+		TodoistToken:   getEnv("TODOIST_TOKEN", ""),
+		TodoistProject: getEnv("TODOIST_PROJECT", "GitLab Issues"),
+		TodoistAPI:     getBoolEnv("TODOIST_API", false),
+		OutputFile:     getEnv("OUTPUT_FILE", "gitlab_issues.md"),
+		Verbose:        getBoolEnv("VERBOSE", false),
 	}
 
-	// 1. .env-Datei laden (falls vorhanden)
-	if err := cfg.LoadFromEnvFile(".env"); err != nil {
-		// .env optional - Fehler nur loggen, nicht stoppen
-		if !os.IsNotExist(err) {
-			fmt.Printf("⚠️  Warnung: .env-Datei konnte nicht gelesen werden: %v\n", err)
-		}
-	}
-
-	// 2. System-Umgebungsvariablen laden (überschreibt .env)
-	cfg.LoadFromEnv()
-
-	return cfg, nil
-}
-
-// LoadFromEnvFile lädt Konfiguration aus .env-Datei
-func (c *Config) LoadFromEnvFile(filename string) error {
-	file, err := os.Open(filename)
-	if err != nil {
-		return err
-	}
-	defer func() {
-		if err := file.Close(); err != nil {
-			fmt.Printf("Fehler beim Schliessen der Datei: %s", filename)
-		}
-	}()
-
-	fmt.Printf("📄 Lade Konfiguration aus %s...\n", filename)
-
-	scanner := bufio.NewScanner(file)
-	lineNumber := 0
-
-	for scanner.Scan() {
-		lineNumber++
-		line := strings.TrimSpace(scanner.Text())
-
-		// Leere Zeilen und Kommentare überspringen
-		if line == "" || strings.HasPrefix(line, "#") {
-			continue
-		}
-
-		// KEY=VALUE parsen
-		parts := strings.SplitN(line, "=", 2)
-		if len(parts) != 2 {
-			fmt.Printf("⚠️  Ungültige Zeile %d in %s: %s\n", lineNumber, filename, line)
-			continue
-		}
-
-		key := strings.TrimSpace(parts[0])
-		value := strings.TrimSpace(parts[1])
-
-		// Anführungszeichen entfernen (optional)
-		value = strings.Trim(value, "\"'")
-
-		// Wert setzen (nur wenn noch nicht gesetzt)
-		c.setEnvValue(key, value, false)
-	}
-
-	return scanner.Err()
-}
-
-// LoadFromEnv lädt Konfiguration aus System-Umgebungsvariablen
-func (c *Config) LoadFromEnv() {
-	envVars := map[string]*string{
-		"GITLAB_TOKEN":    &c.GitLabToken,
-		"GITLAB_URL":      &c.GitLabURL,
-		"PROJECT_PATH":    &c.ProjectPath,
-		"MILESTONE_TITLE": nil, // Special handling
-		"TODOIST_TOKEN":   &c.TodoistToken,
-		"TODOIST_PROJECT": &c.TodoistProject,
-		"OUTPUT_FILE":     &c.OutputFile,
-	}
-
-	for envKey, configField := range envVars {
-		if value := os.Getenv(envKey); value != "" {
-			if configField != nil {
-				*configField = value
-			}
-		}
-	}
-
-	// Special handling für MILESTONE_TITLE
+	// Optional: MILESTONE_TITLE
 	if milestone := os.Getenv("MILESTONE_TITLE"); milestone != "" {
-		c.MilestoneTitle = &milestone
+		cfg.MilestoneTitle = &milestone
 	}
 
-	// Boolean-Werte
-	if todoist := os.Getenv("TODOIST_API"); todoist != "" {
-		c.TodoistAPI, _ = strconv.ParseBool(todoist)
+	if cfg.Verbose {
+		cfg.printDebugInfo()
 	}
 
-	if verbose := os.Getenv("VERBOSE"); verbose != "" {
-		c.Verbose, _ = strconv.ParseBool(verbose)
+	return cfg, cfg.Validate()
+}
+
+func (c *Config) printDebugInfo() {
+	fmt.Printf("🔧 Configuration loaded:\n")
+	fmt.Printf("   GitLab URL: %s\n", c.GitLabURL)
+	fmt.Printf("   Project Path: %s\n", c.ProjectPath)
+	fmt.Printf("   Output File: %s\n", c.OutputFile)
+	fmt.Printf("   Has GitLab Token: %t (length: %d)\n",
+		c.GitLabToken != "", len(c.GitLabToken))
+	fmt.Printf("   Has Todoist Token: %t\n", c.TodoistToken != "")
+	if c.MilestoneTitle != nil {
+		fmt.Printf("   Milestone Filter: %s\n", *c.MilestoneTitle)
 	}
 }
 
-// setEnvValue setzt einen Konfigurationswert basierend auf dem Key
-func (c *Config) setEnvValue(key, value string, overwrite bool) {
-	switch key {
-	case "GITLAB_TOKEN":
-		if c.GitLabToken == "" || overwrite {
-			c.GitLabToken = value
-		}
-	case "GITLAB_URL":
-		if c.GitLabURL == "" || overwrite {
-			c.GitLabURL = value
-		}
-	case "PROJECT_PATH":
-		if c.ProjectPath == "" || overwrite {
-			c.ProjectPath = value
-		}
-	case "MILESTONE_TITLE":
-		if c.MilestoneTitle == nil || overwrite {
-			c.MilestoneTitle = &value
-		}
-	case "TODOIST_TOKEN":
-		if c.TodoistToken == "" || overwrite {
-			c.TodoistToken = value
-		}
-	case "TODOIST_PROJECT":
-		if c.TodoistProject == "" || overwrite {
-			c.TodoistProject = value
-		}
-	case "TODOIST_API":
-		if parsed, err := strconv.ParseBool(value); err == nil {
-			c.TodoistAPI = parsed
-		}
-	case "OUTPUT_FILE":
-		if c.OutputFile == "" || overwrite {
-			c.OutputFile = value
-		}
-	case "VERBOSE":
-		if parsed, err := strconv.ParseBool(value); err == nil {
-			c.Verbose = parsed
-		}
+func getEnv(key, defaultValue string) string {
+	if value := os.Getenv(key); value != "" {
+		return value
 	}
+	return defaultValue
 }
 
-// Rest der Config-Methoden bleiben gleich...
+func getBoolEnv(key string, defaultValue bool) bool {
+	if value := os.Getenv(key); value != "" {
+		if parsed, err := strconv.ParseBool(value); err == nil {
+			return parsed
+		}
+	}
+	return defaultValue
+}
+
 func (c *Config) Validate() error {
 	if c.GitLabToken == "" {
-		return fmt.Errorf("GitLab Token fehlt (--gitlab-token oder GITLAB_TOKEN)")
+		return fmt.Errorf("GitLab Token fehlt (GITLAB_TOKEN)")
 	}
-
 	if c.ProjectPath == "" {
-		return fmt.Errorf("GitLab Projekt-Pfad fehlt (--project-path oder PROJECT_PATH)")
+		return fmt.Errorf("GitLab Projekt-Pfad fehlt (PROJECT_PATH)")
 	}
-
 	if c.TodoistAPI && c.TodoistToken == "" {
-		return fmt.Errorf("todoist Token fehlt für API-Export (--todoist-token oder TODOIST_TOKEN)")
+		return fmt.Errorf("todoist Token fehlt für API-Export (TODOIST_TOKEN)")
 	}
-
 	return nil
 }
 

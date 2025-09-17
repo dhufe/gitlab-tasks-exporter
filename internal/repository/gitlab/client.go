@@ -82,7 +82,7 @@ func (r *Repository) GetProjectIssues(projectPath string) ([]gitlabDomain.Issue,
 // ValidateConnection prüft ob die GitLab-Verbindung funktioniert
 func (r *Repository) ValidateConnection() error {
 	url := fmt.Sprintf("%s/user", r.baseURL)
-
+	fmt.Printf("   Config GitLab URL: %s\n", r.baseURL)
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return err

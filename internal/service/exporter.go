@@ -60,7 +60,6 @@ func (e *Exporter) Export() error {
 	return e.exportToFile(issues)
 }
 
-// loadGitLabIssues lädt Issues basierend auf der Konfiguration
 func (e *Exporter) loadGitLabIssues() ([]gitlabDomain.Issue, error) {
 	// Verbindung testen
 	if err := e.gitlabRepo.ValidateConnection(); err != nil {
