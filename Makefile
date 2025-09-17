@@ -200,31 +200,24 @@ setup:
 release: clean build-all
 	@echo "📦 Creating release archives v$(VERSION)..."
 	@mkdir -p $(BUILD_DIR)/releases
+	@mkdir -p $(BUILD_DIR)/temp
 	
 	# Linux
-	@tar -czf $(BUILD_DIR)/releases/$(BINARY_NAME)-$(VERSION)-linux-amd64.tar.gz \
-		-C $(BUILD_DIR) $(BINARY_UNIX) \
-		--transform 's/$(BINARY_UNIX)/$(BINARY_NAME)/'
-	
+	@cp $(BUILD_DIR)/$(BINARY_UNIX) $(BUILD_DIR)/temp/$(BINARY_NAME)
+	@tar -czf $(BUILD_DIR)/releases/$(BINARY_NAME)-$(VERSION)-linux-amd64.tar.gz -C $(BUILD_DIR)/temp $(BINARY_NAME)
+
 	# Darwin amd64
-	@tar -czf $(BUILD_DIR)/releases/$(BINARY_NAME)-$(VERSION)-darwin-amd64.tar.gz \
-		-C $(BUILD_DIR) $(BINARY_DARWIN) \
-		--transform 's/$(BINARY_DARWIN)/$(BINARY_NAME)/' 2>/dev/null || \
-	tar -czf $(BUILD_DIR)/releases/$(BINARY_NAME)-$(VERSION)-darwin-amd64.tar.gz \
-		-C $(BUILD_DIR) $(BINARY_DARWIN)
-	
+	@cp $(BUILD_DIR)/$(BINARY_DARWIN) $(BUILD_DIR)/temp/$(BINARY_NAME)
+	@tar -czf $(BUILD_DIR)/releases/$(BINARY_NAME)-$(VERSION)-darwin-amd64.tar.gz -C $(BUILD_DIR)/temp $(BINARY_NAME)
+
 	# Darwin arm64
-	@tar -czf $(BUILD_DIR)/releases/$(BINARY_NAME)-$(VERSION)-darwin-arm64.tar.gz \
-		-C $(BUILD_DIR) $(BINARY_ARM64) \
-		--transform 's/$(BINARY_ARM64)/$(BINARY_NAME)/' 2>/dev/null || \
-	tar -czf $(BUILD_DIR)/releases/$(BINARY_NAME)-$(VERSION)-darwin-arm64.tar.gz \
-		-C $(BUILD_DIR) $(BINARY_ARM64)
+	@cp $(BUILD_DIR)/$(BINARY_ARM64) $(BUILD_DIR)/temp/$(BINARY_NAME)
+	@tar -czf $(BUILD_DIR)/releases/$(BINARY_NAME)-$(VERSION)-darwin-arm64.tar.gz -C $(BUILD_DIR)/temp $(BINARY_NAME)
 	
 	# Windows
 	@cd $(BUILD_DIR) && zip -j releases/$(BINARY_NAME)-$(VERSION)-windows-amd64.zip $(BINARY_WINDOWS)
 	
 	@echo "📦 Release archives created in $(BUILD_DIR)/releases/"
-	@ls -la $(BUILD_DIR)/releases/
 
 # Validate project structure
 .PHONY: validate
