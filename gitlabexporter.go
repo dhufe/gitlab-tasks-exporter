@@ -191,7 +191,7 @@ func (e *GitLabExporter) ExportToTodoistCSV(issues []Issue, filename string) err
 		}
 
 		if err := writer.Write(row); err != nil {
-			return fmt.Errorf("fehler beim Schreiben des Issues %d: %w", issue.IID, err)
+			return fmt.Errorf("fehler beim Schreiben des Issues %s: %w", issue.IID, err)
 		}
 	}
 
@@ -213,7 +213,7 @@ func (e *GitLabExporter) convertIssueToTodoistRecord(issue Issue) TodoistRecord 
 
 	var parts []string
 	parts = append(parts, fmt.Sprintf("🔗 GitLab: %s", issue.WebURL))
-	parts = append(parts, fmt.Sprintf("IID: %d", issue.IID))
+	parts = append(parts, fmt.Sprintf("IID: %s", issue.IID))
 	parts = append(parts, fmt.Sprintf("Status: %s", issue.State))
 
 	// DueDate einfach als String hinzufügen wenn vorhanden

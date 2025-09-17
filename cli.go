@@ -3,7 +3,6 @@ package main
 // cli.go
 import (
 	"flag"
-	"fmt"
 )
 
 func parseFlags() Config {
@@ -29,6 +28,6 @@ func parseFlags() Config {
 	}
 
 	config.Structured = *structured
-	fmt.Println(config)
+
 	return config
 }
