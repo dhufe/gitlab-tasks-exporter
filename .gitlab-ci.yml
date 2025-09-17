@@ -9,6 +9,8 @@ linting:
   image: ${GITLAB_DEPENDENCY_PROXY}golangci/golangci-lint:v$GOLANGCI_LINT_VERSION
   tags: [docker]
   stage: lint
+  before_script:
+    - go mod tidy
   script:
     - golangci-lint run --output.text.path=stdout --output.text.colors=false --output.text.print-issued-lines=false --output.code-climate.path=gl-code-quality-report.json
   artifacts:
