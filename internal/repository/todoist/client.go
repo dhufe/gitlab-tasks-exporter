@@ -42,7 +42,12 @@ func (r *Repository) GetProjects() ([]todoistDomain.Project, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() {
+		err = resp.Body.Close()
+		if err != nil {
+			fmt.Printf("fehler beim Abschliessen des Response bodies.")
+		}
+	}()
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
@@ -79,7 +84,12 @@ func (r *Repository) CreateProject(name string) (*todoistDomain.Project, error) 
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() {
+		err = resp.Body.Close()
+		if err != nil {
+			fmt.Printf("fehler beim Abschliessen des Response bodies.")
+		}
+	}()
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
@@ -107,7 +117,12 @@ func (r *Repository) GetProjectSections(projectID string) ([]todoistDomain.Secti
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() {
+		err = resp.Body.Close()
+		if err != nil {
+			fmt.Printf("fehler beim Abschliessen des Response bodies.")
+		}
+	}()
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
@@ -145,7 +160,12 @@ func (r *Repository) CreateSection(projectID string, name string, order int) (*t
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() {
+		err = resp.Body.Close()
+		if err != nil {
+			fmt.Printf("fehler beim Abschliessen des Response bodies.")
+		}
+	}()
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
@@ -173,7 +193,12 @@ func (r *Repository) GetProjectTasks(projectID string) ([]todoistDomain.Task, er
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() {
+		err = resp.Body.Close()
+		if err != nil {
+			fmt.Printf("fehler beim Abschliessen des Response bodies.")
+		}
+	}()
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
@@ -205,7 +230,12 @@ func (r *Repository) CreateTask(taskRequest todoistDomain.CreateTaskRequest) (*t
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() {
+		err = resp.Body.Close()
+		if err != nil {
+			fmt.Printf("fehler beim Abschliessen des Response bodies.")
+		}
+	}()
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
@@ -237,7 +267,12 @@ func (r *Repository) UpdateTask(taskID string, updates map[string]interface{}) (
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() {
+		err = resp.Body.Close()
+		if err != nil {
+			fmt.Printf("fehler beim Abschliessen des Response bodies.")
+		}
+	}()
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
@@ -253,7 +288,7 @@ func (r *Repository) UpdateTask(taskID string, updates map[string]interface{}) (
 func (r *Repository) ValidateConnection() error {
 	_, err := r.GetProjects()
 	if err != nil {
-		return fmt.Errorf("Todoist connection failed: %w", err)
+		return fmt.Errorf("todoist connection failed: %w", err)
 	}
 	return nil
 }

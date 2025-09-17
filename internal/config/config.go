@@ -26,11 +26,11 @@ func (c *Config) Validate() error {
 	}
 
 	if c.GitLabToken == "" {
-		return fmt.Errorf("GitLab token ist erforderlich")
+		return fmt.Errorf("gitLab token ist erforderlich")
 	}
 
 	if c.TodoistAPI && c.TodoistToken == "" {
-		return fmt.Errorf("Todoist token ist erforderlich für API-Export")
+		return fmt.Errorf("todoist token ist erforderlich für API-Export")
 	}
 
 	return nil

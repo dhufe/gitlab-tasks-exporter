@@ -63,7 +63,12 @@ func (r *Repository) GetProjectIssues(projectPath string) ([]gitlabDomain.Issue,
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() {
+		err = resp.Body.Close()
+		if err != nil {
+			fmt.Printf("fehler beim Abschliessen des Response bodies.")
+		}
+	}()
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("GitLab API error: %d", resp.StatusCode)
@@ -89,7 +94,12 @@ func (r *Repository) ValidateConnection() error {
 	if err != nil {
 		return fmt.Errorf("connection failed: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		err = resp.Body.Close()
+		if err != nil {
+			fmt.Printf("fehler beim Abschliessen des Response bodies.")
+		}
+	}()
 
 	if resp.StatusCode == http.StatusUnauthorized {
 		return fmt.Errorf("invalid GitLab token")
@@ -159,7 +169,12 @@ func (r *Repository) executeGraphQLQuery(query string) (*gitlabDomain.GraphQLRes
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() {
+		err = resp.Body.Close()
+		if err != nil {
+			fmt.Printf("fehler beim Abschliessen des Response bodies.")
+		}
+	}()
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("HTTP %d", resp.StatusCode)

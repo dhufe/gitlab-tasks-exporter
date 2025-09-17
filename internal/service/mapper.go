@@ -100,9 +100,10 @@ func (m *Mapper) extractLabels(issue gitlabDomain.Issue) []string {
 	}
 
 	// Issue State als Label hinzufügen
-	if issue.State == "opened" {
+	switch issue.State {
+	case "opened":
 		labels = append(labels, "open")
-	} else if issue.State == "closed" {
+	case "closed":
 		labels = append(labels, "closed")
 	}
 
