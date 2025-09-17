@@ -25,8 +25,8 @@ buildproject:
   tags: [docker]
   stage: build
   before_script:
-    - apk update apk add --no-cache
-    - apk add apk add --no-cache make 
+    - apk update --no-cache
+    - apk add --no-cache make 
   script:
     - make release 
 
