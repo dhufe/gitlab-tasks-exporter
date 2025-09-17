@@ -30,9 +30,20 @@ func main() {
 
 	fmt.Printf("Gefunden: %d Issues\n", len(issues))
 
-	err = exporter.ExportToTodoistCSV(issues, config.OutputFile)
-	if err != nil {
-		log.Fatalf("Fehler beim CSV-Export: %v", err)
+	// Todoist API Export
+	if config.UseAPI {
+		err = exporter.ExportToTodoist(issues)
+		if err != nil {
+			log.Fatalf("Fehler beim Todoist-Export: %v", err)
+		}
+		fmt.Println("✅ Export zu Todoist abgeschlossen!")
+	} else {
+		// CSV Export
+		err = exporter.ExportToTodoistCSV(issues, config.OutputFile)
+		if err != nil {
+			log.Fatalf("Fehler beim CSV-Export: %v", err)
+		}
+		fmt.Printf("Export abgeschlossen: %s\n", config.OutputFile)
 	}
 
 	if config.ExportMarkdown {
@@ -42,6 +53,4 @@ func main() {
 		}
 		fmt.Printf("Markdown-Export erstellt: %s\n", config.MarkdownFile)
 	}
-
-	fmt.Printf("Export abgeschlossen: %s\n", config.OutputFile)
 }

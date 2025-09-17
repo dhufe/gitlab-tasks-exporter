@@ -12,6 +12,9 @@ type Config struct {
 	AssignedUser   *string
 	ExportMarkdown bool
 	MarkdownFile   string
+	TodoistToken   string
+	UseAPI         bool
+	TodoistProject string
 }
 
 type authTransport struct {
@@ -83,4 +86,46 @@ type TodoistRecord struct {
 	DateLang    string
 	Timezone    string
 	Labels      string
+}
+
+type TodoistProject struct {
+	ID           string `json:"id"`
+	Name         string `json:"name"`
+	CommentCount int    `json:"comment_count"`
+	Order        int    `json:"order"`
+	Color        string `json:"color"`
+	Shared       bool   `json:"shared"`
+	Favorite     bool   `json:"favorite"`
+	InboxProject bool   `json:"inbox_project"`
+	TeamInbox    bool   `json:"team_inbox"`
+	ViewStyle    string `json:"view_style"`
+	URL          string `json:"url"`
+}
+
+type TodoistTask struct {
+	ID          string   `json:"id,omitempty"`
+	ProjectID   string   `json:"project_id"`
+	Content     string   `json:"content"`
+	Description string   `json:"description"`
+	Priority    int      `json:"priority"`
+	DueString   string   `json:"due_string,omitempty"`
+	DueDate     string   `json:"due_date,omitempty"`
+	Labels      []string `json:"labels,omitempty"`
+}
+
+type TodoistSection struct {
+	ID        string `json:"id,omitempty"`
+	ProjectID string `json:"project_id"`
+	Name      string `json:"name"`
+	Order     int    `json:"order"`
+}
+
+type TodoistCreateTaskRequest struct {
+	Content     string   `json:"content"`
+	Description string   `json:"description"`
+	ProjectID   string   `json:"project_id"`
+	SectionID   string   `json:"section_id,omitempty"`
+	Priority    int      `json:"priority"`
+	DueString   string   `json:"due_string,omitempty"`
+	Labels      []string `json:"labels,omitempty"`
 }

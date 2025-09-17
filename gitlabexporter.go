@@ -1,9 +1,12 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/csv"
+	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"strconv"
@@ -340,6 +343,148 @@ func getTodoistPriority(labels []string) int {
 	return 2
 }
 
+func (e *GitLabExporter) ExportToTodoist(issues []Issue) error {
+	todoistAPI := NewTodoistAPI(e.config.TodoistToken)
+
+	// Projekt finden oder erstellen
+	projectID, err := e.getOrCreateTodoistProject(todoistAPI)
+	if err != nil {
+		return fmt.Errorf("projekt setup fehlgeschlagen: %w", err)
+	}
+
+	fmt.Printf("📋 Verwende Todoist Projekt ID: %s\n", projectID)
+
+	// Bestehende Tasks laden für Duplikat-Check
+	fmt.Println("🔍 Lade bestehende Tasks...")
+	existingTasks, err := todoistAPI.GetProjectTasks(projectID)
+	if err != nil {
+		return fmt.Errorf("fehler beim Laden bestehender Tasks: %w", err)
+	}
+
+	existingTaskMap := make(map[string]string) // content -> taskID
+	for _, task := range existingTasks {
+		existingTaskMap[task.Content] = task.ID
+	}
+
+	fmt.Printf("📊 Gefunden: %d bestehende Tasks\n", len(existingTasks))
+
+	var sections map[string]string
+	if e.config.Structured {
+		sections, err = e.createTodoistSections(todoistAPI, projectID)
+		if err != nil {
+			return fmt.Errorf("fehler beim Erstellen der Sections: %w", err)
+		}
+	}
+
+	created := 0
+	skipped := 0
+	updated := 0
+
+	for _, issue := range issues {
+		// Check ob Task bereits existiert
+		if existingTaskID, exists := existingTaskMap[issue.Title]; exists {
+			fmt.Printf("⏭️  Task bereits vorhanden: #%s - %s (ID: %s)\n", issue.IID, issue.Title, existingTaskID)
+			skipped++
+
+			// Optional: Task updaten falls sich was geändert hat
+			if e.shouldUpdateTask(issue, existingTasks, existingTaskID) {
+				err := e.updateTodoistTask(todoistAPI, existingTaskID, issue, projectID, sections)
+				if err != nil {
+					fmt.Printf("⚠️  Update fehlgeschlagen für #%s: %v\n", issue.IID, err)
+				} else {
+					fmt.Printf("🔄 Task aktualisiert: #%s - %s\n", issue.IID, issue.Title)
+					updated++
+				}
+			}
+			continue
+		}
+
+		// Neuen Task erstellen
+		sectionID := ""
+		if e.config.Structured {
+			if issue.State == "opened" {
+				sectionID = sections["open"]
+			} else {
+				sectionID = sections["closed"]
+			}
+		}
+
+		taskRequest := e.convertIssueToTodoistTask(issue, projectID, sectionID)
+
+		task, err := todoistAPI.CreateTask(taskRequest)
+		if err != nil {
+			fmt.Printf("❌ Fehler bei Issue #%s: %v\n", issue.IID, err)
+			continue
+		}
+
+		fmt.Printf("✅ Task erstellt: #%s - %s (ID: %s)\n", issue.IID, issue.Title, task.ID)
+		created++
+	}
+
+	fmt.Printf("\n📈 Zusammenfassung:\n")
+	fmt.Printf("✅ Neu erstellt: %d\n", created)
+	fmt.Printf("🔄 Aktualisiert: %d\n", updated)
+	fmt.Printf("⏭️  Übersprungen: %d\n", skipped)
+
+	return nil
+}
+
+func (e *GitLabExporter) convertIssueToTodoistTask(issue Issue, projectID, sectionID string) TodoistCreateTaskRequest {
+	// Labels sammeln
+	var labels []string
+	for _, label := range issue.Labels.Nodes {
+		labels = append(labels, label.Title)
+	}
+
+	// Priorität bestimmen
+	priority := e.getTodoistPriorityFromLabels(labels)
+
+	// Beschreibung erstellen
+	description := fmt.Sprintf("🔗 GitLab: %s\n📋 IID: %s\n📊 Status: %s",
+		issue.WebURL, issue.IID, issue.State)
+
+	if len(issue.Assignees.Nodes) > 0 {
+		description += fmt.Sprintf("\n👤 Assignee: %s", issue.Assignees.Nodes[0].Name)
+	}
+
+	if issue.Description != "" {
+		description += fmt.Sprintf("\n\n## Beschreibung\n%s", issue.Description)
+	}
+
+	task := TodoistCreateTaskRequest{
+		Content:     issue.Title,
+		Description: description,
+		ProjectID:   projectID,
+		Priority:    priority,
+		Labels:      labels,
+	}
+
+	if sectionID != "" {
+		task.SectionID = sectionID
+	}
+
+	// Due Date falls vorhanden
+	if issue.DueDate != nil && *issue.DueDate != "" {
+		task.DueString = *issue.DueDate
+	}
+
+	return task
+}
+
+func (e *GitLabExporter) getTodoistPriorityFromLabels(labels []string) int {
+	for _, label := range labels {
+		switch strings.ToLower(label) {
+		case "urgent", "critical", "blocker", "p1":
+			return 4
+		case "high", "important", "p2":
+			return 3
+		case "low", "minor", "p4":
+			return 1
+		}
+	}
+	return 2 // normal
+}
+
 func (e *GitLabExporter) ExportToTodoistWithStructure(issues []Issue, filename string) error {
 	milestoneGroups := make(map[string][]Issue)
 
@@ -631,4 +776,131 @@ func (e *GitLabExporter) getStateDisplayName(state string) string {
 	default:
 		return strings.ToUpper(state[:1]) + strings.ToLower(state[1:])
 	}
+}
+
+func (e *GitLabExporter) shouldUpdateTask(issue Issue, existingTasks []TodoistTask, taskID string) bool {
+	for _, task := range existingTasks {
+		if task.ID == taskID {
+			// Check ob sich was geändert hat
+			if task.Content != issue.Title {
+				return true
+			}
+
+			// Check Status change
+			currentCompleted := !strings.Contains(task.Description, "Status: opened")
+			shouldBeCompleted := issue.State != "opened"
+
+			if currentCompleted != shouldBeCompleted {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func (e *GitLabExporter) updateTodoistTask(api *TodoistAPI, taskID string, issue Issue, projectID string, sections map[string]string) error {
+	// Task Update implementieren
+	updateURL := fmt.Sprintf("%s/tasks/%s", api.baseURL, taskID)
+
+	sectionID := ""
+	if sections != nil {
+		if issue.State == "opened" {
+			sectionID = sections["open"]
+		} else {
+			sectionID = sections["closed"]
+		}
+	}
+
+	updateRequest := e.convertIssueToTodoistTask(issue, projectID, sectionID)
+
+	jsonData, err := json.Marshal(updateRequest)
+	if err != nil {
+		return err
+	}
+
+	req, err := http.NewRequest("POST", updateURL, bytes.NewBuffer(jsonData))
+	if err != nil {
+		return err
+	}
+
+	req.Header.Set("Authorization", "Bearer "+api.token)
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := api.httpClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		err = resp.Body.Close()
+		if err != nil {
+			fmt.Printf("fehler beim Abschliessen des Response bodies.")
+		}
+	}()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("update failed %d: %s", resp.StatusCode, string(body))
+	}
+
+	return nil
+}
+
+// Projekt finden oder erstellen
+func (e *GitLabExporter) getOrCreateTodoistProject(api *TodoistAPI) (string, error) {
+	// Zuerst alle Projekte abrufen
+	projects, err := api.GetProjects()
+	if err != nil {
+		return "", fmt.Errorf("fehler beim Abrufen der Projekte: %w", err)
+	}
+
+	// Projektname bestimmen
+	projectName := e.config.TodoistProject
+	if projectName == "" {
+		// Standard: GitLab Repository Name + Milestone
+		projectName = e.config.ProjectPath
+		if e.config.MilestoneTitle != nil && *e.config.MilestoneTitle != "" && *e.config.MilestoneTitle != "*" {
+			projectName = fmt.Sprintf("%s - %s", projectName, *e.config.MilestoneTitle)
+		}
+	}
+
+	// Schauen ob Projekt bereits existiert
+	for _, project := range projects {
+		if project.Name == projectName {
+			fmt.Printf("📋 Verwende existierendes Projekt: %s (ID: %s)\n", project.Name, project.ID)
+			return project.ID, nil
+		}
+	}
+
+	// Projekt erstellen falls nicht gefunden
+	fmt.Printf("📋 Erstelle neues Projekt: %s\n", projectName)
+	project, err := api.CreateProject(projectName)
+	if err != nil {
+		return "", fmt.Errorf("fehler beim Erstellen des Projekts: %w", err)
+	}
+
+	return project.ID, nil
+}
+
+// Sections für strukturierte Exports erstellen
+func (e *GitLabExporter) createTodoistSections(api *TodoistAPI, projectID string) (map[string]string, error) {
+	sections := make(map[string]string)
+
+	// "Offen" Section erstellen
+	openSection, err := api.CreateSection(projectID, "🔓 Offen", 1)
+	if err != nil {
+		return nil, fmt.Errorf("fehler beim Erstellen der 'Offen' Section: %w", err)
+	}
+	sections["open"] = openSection.ID
+
+	// "Geschlossen" Section erstellen
+	closedSection, err := api.CreateSection(projectID, "✅ Geschlossen", 2)
+	if err != nil {
+		return nil, fmt.Errorf("fehler beim Erstellen der 'Geschlossen' Section: %w", err)
+	}
+	sections["closed"] = closedSection.ID
+
+	fmt.Printf("📂 Sections erstellt: Offen (%s), Geschlossen (%s)\n",
+		openSection.ID, closedSection.ID)
+
+	return sections, nil
 }

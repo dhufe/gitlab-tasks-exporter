@@ -3,7 +3,6 @@ package main
 // cli.go
 import (
 	"flag"
-	"fmt"
 	"log"
 
 	"github.com/joho/godotenv"
@@ -28,6 +27,11 @@ func parseFlags() Config {
 
 	exportMarkdown := flag.Bool("markdown", false, "Markdown-Export für Notizen")
 	flag.StringVar(&config.MarkdownFile, "markdown_file", getEnv("MARKDOWN_FILE", "issues-notes.md"), "Dateiname für Markdown-Export")
+
+	flag.StringVar(&config.TodoistToken, "todoist-token", getEnv("TODOIST_TOKEN", ""), "Todoist API Token")
+	useAPI := flag.Bool("todoist-api", false, "Use Todoist API instead of CSV export")
+	flag.StringVar(&config.TodoistProject, "todoist-project", getEnv("TODOIST_PROJECT", ""), "Todoist Project Name (will be created if not exists)")
+
 	flag.Parse()
 
 	if *milestoneTitle != "" {
@@ -40,10 +44,14 @@ func parseFlags() Config {
 
 	config.Structured = *structured
 	config.ExportMarkdown = *exportMarkdown
+	config.UseAPI = *useAPI
 
 	if config.Token == "" || config.ProjectPath == "" {
 		log.Fatal("GITLAB_TOKEN und PROJECT_PATH müssen gesetzt sein")
 	}
-	fmt.Print(config)
+
+	if config.UseAPI && config.TodoistToken == "" {
+		log.Fatal("TODOIST_TOKEN muss gesetzt sein wenn --todoist-api verwendet wird")
+	}
 	return config
 }
