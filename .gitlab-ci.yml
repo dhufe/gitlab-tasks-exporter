@@ -23,7 +23,10 @@ linting:
 buildproject:
   image: docker.io/golang:alpine
   tags: [docker]
-  stage: build 
+  stage: build
+  before_script:
+    - apk update apk add --no-cache
+    - apk add apk add --no-cache make 
   script:
     - make release 
 
