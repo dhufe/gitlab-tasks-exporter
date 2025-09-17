@@ -1,7 +1,0 @@
-GITLAB_URL=https://gitlab.com
-GITLAB_TOKEN=your-private-token-here
-PROJECT_PATH=username/project-name
-MILESTONE_TITLE=Version 2.0
-OUTPUT_FILE=todoist_export.csv
-STRUCTURED=true
-ASSIGNED_USER=""
