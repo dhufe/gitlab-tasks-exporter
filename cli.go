@@ -3,10 +3,19 @@ package main
 // cli.go
 import (
 	"flag"
+	"fmt"
+	"log"
+
+	"github.com/joho/godotenv"
 )
 
 func parseFlags() Config {
 	var config Config
+
+	// Lade .env wenn vorhanden
+	if err := godotenv.Load(); err != nil {
+		log.Fatal("Error loading .env file.")
+	}
 
 	flag.StringVar(&config.GitLabURL, "url", getEnv("GITLAB_URL", "https://gitlab.com"), "GitLab URL")
 	flag.StringVar(&config.Token, "token", getEnv("GITLAB_TOKEN", ""), "GitLab Private Token")
@@ -17,6 +26,8 @@ func parseFlags() Config {
 	assignedUser := flag.String("assigned", getEnv("ASSIGNED_USER", ""), "Filter by assigned user (username)")
 	structured := flag.Bool("structured", false, "Create structured export with projects")
 
+	exportMarkdown := flag.Bool("markdown", false, "Markdown-Export für Notizen")
+	flag.StringVar(&config.MarkdownFile, "markdown_file", getEnv("MARKDOWN_FILE", "issues-notes.md"), "Dateiname für Markdown-Export")
 	flag.Parse()
 
 	if *milestoneTitle != "" {
@@ -28,6 +39,11 @@ func parseFlags() Config {
 	}
 
 	config.Structured = *structured
+	config.ExportMarkdown = *exportMarkdown
 
+	if config.Token == "" || config.ProjectPath == "" {
+		log.Fatal("GITLAB_TOKEN und PROJECT_PATH müssen gesetzt sein")
+	}
+	fmt.Print(config)
 	return config
 }

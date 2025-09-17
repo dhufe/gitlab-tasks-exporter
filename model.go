@@ -9,7 +9,9 @@ type Config struct {
 	ProjectPath    string
 	MilestoneTitle *string
 	OutputFile     string
-	AssignedUser   *string // Neu hinzugefügt
+	AssignedUser   *string
+	ExportMarkdown bool
+	MarkdownFile   string
 }
 
 type authTransport struct {

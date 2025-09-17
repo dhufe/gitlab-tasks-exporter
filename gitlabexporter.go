@@ -8,6 +8,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/hasura/go-graphql-client"
 )
@@ -31,6 +32,88 @@ func NewGitLabExporter(config Config) *GitLabExporter {
 		client: client,
 		config: config,
 	}
+}
+
+func (e *GitLabExporter) ExportMarkdown(issues []Issue, filename string) error {
+	file, err := os.Create(filename)
+	if err != nil {
+		return fmt.Errorf("datei konnte nicht erstellt werden: %w", err)
+	}
+	defer func() {
+		err = file.Close()
+		if err != nil {
+			fmt.Print("fehler beim Schliessen der Datei.")
+		}
+	}()
+
+	// Header
+	timestamp := time.Now().Format("2006-01-02 15:04")
+	_, err = fmt.Fprintf(file, "# Meeting Notes - %s\n", e.config.ProjectPath)
+	if err != nil {
+		return err
+	}
+
+	_, err = fmt.Fprintf(file, "**Exportiert am:** %s  \n", timestamp)
+	if err != nil {
+		return err
+	}
+
+	if e.config.MilestoneTitle != nil && *e.config.MilestoneTitle != "*" && *e.config.MilestoneTitle != "" {
+		_, err = fmt.Fprintf(file, "**Milestone:** %s  \n", *e.config.MilestoneTitle)
+		if err != nil {
+			return err
+		}
+	}
+
+	if e.config.AssignedUser != nil {
+		_, err = fmt.Fprintf(file, "**Assigned to:** %s  \n", *e.config.AssignedUser)
+		if err != nil {
+			return err
+		}
+	}
+
+	_, err = fmt.Fprintf(file, "**Issues gesamt:** %d\n\n", len(issues))
+	if err != nil {
+		return err
+	}
+
+	// Inhaltsverzeichnis
+	_, err = fmt.Fprintf(file, "## 📋 Agenda\n\n")
+	if err != nil {
+		return err
+	}
+
+	for _, issue := range issues {
+		priority := e.getPriorityEmoji(issue)
+		state := e.getStateEmoji(issue.State)
+
+		_, err = fmt.Fprintf(file, "- [%s #%s: %s](#issue-%s) %s %s\n",
+			state, issue.IID, issue.Title, issue.IID, priority, e.getLabelsString(issue))
+		if err != nil {
+			return err
+		}
+	}
+
+	_, err = fmt.Fprintf(file, "\n---\n\n")
+	if err != nil {
+		return err
+	}
+
+	// Issues detailliert
+	for i, issue := range issues {
+		err = e.writeIssueSection(file, issue, i+1, len(issues))
+		if err != nil {
+			return err
+		}
+	}
+
+	// Footer mit Aktionsbereich
+	err = e.writeFooterSection(file)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (e *GitLabExporter) GetAllIssues() ([]Issue, error) {
@@ -221,7 +304,7 @@ func (e *GitLabExporter) convertIssueToTodoistRecord(issue Issue) TodoistRecord 
 	parts = append(parts, fmt.Sprintf("IID: %s", issue.IID))
 	parts = append(parts, fmt.Sprintf("Status: %s", issue.State))
 
-	// DueDate einfach als String hinzufügen wenn vorhanden
+	// DueDate nur hinzufügen wenn vorhanden
 	if issue.DueDate != nil && *issue.DueDate != "" {
 		parts = append(parts, fmt.Sprintf("📅 Due: %s", *issue.DueDate))
 	}
@@ -315,4 +398,237 @@ func (e *GitLabExporter) ExportToTodoistWithStructure(issues []Issue, filename s
 	}
 
 	return nil
+}
+
+func (e *GitLabExporter) writeIssueSection(file *os.File, issue Issue, index, total int) error {
+	priority := e.getPriorityEmoji(issue)
+	state := e.getStateEmoji(issue.State)
+
+	// Issue Header
+	_, err := fmt.Fprintf(file, "## Issue #%s: %s {#issue-%s}\n\n",
+		issue.IID, issue.Title, issue.IID)
+	if err != nil {
+		return err
+	}
+
+	// Status und Metadaten
+	_, err = fmt.Fprintf(file, "**Status:** %s %s | **Priorität:** %s | **Progress:** %d/%d\n\n",
+		state, e.getStateDisplayName(issue.State), priority, index, total)
+	if err != nil {
+		return err
+	}
+
+	// Issue-Infos in Box
+	_, err = fmt.Fprintf(file, "> 📎 **GitLab:** [%s](%s)  \n", issue.WebURL, issue.WebURL)
+	if err != nil {
+		return err
+	}
+
+	// Assignee nur wenn vorhanden
+	if len(issue.Assignees.Nodes) > 0 && issue.Assignees.Nodes[0].Name != "" {
+		_, err = fmt.Fprintf(file, "> 👤 **Assignee:** %s  \n", issue.Assignees.Nodes[0].Name)
+		if err != nil {
+			return err
+		}
+	}
+
+	// DueDate nur wenn vorhanden
+	if issue.DueDate != nil && *issue.DueDate != "" {
+		_, err = fmt.Fprintf(file, "> 📅 **Due Date:** %s  \n", *issue.DueDate)
+		if err != nil {
+			return err
+		}
+	}
+
+	labels := e.getLabelsString(issue)
+	if labels != "" {
+		_, err = fmt.Fprintf(file, "> 🏷️ **Labels:** %s  \n", labels)
+		if err != nil {
+			return err
+		}
+	}
+
+	_, err = fmt.Fprintf(file, "\n")
+	if err != nil {
+		return err
+	}
+
+	// Rest der Funktion bleibt gleich...
+	// Beschreibung falls vorhanden
+	if issue.Description != "" {
+		_, err = fmt.Fprintf(file, "### 📝 Beschreibung\n\n")
+		if err != nil {
+			return err
+		}
+
+		// Beschreibung einrücken
+		description := strings.ReplaceAll(issue.Description, "\n", "\n> ")
+		_, err = fmt.Fprintf(file, "> %s\n\n", description)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Meeting-Notizen Bereich
+	_, err = fmt.Fprintf(file, "### 💬 Meeting Notes\n\n")
+	if err != nil {
+		return err
+	}
+
+	_, err = fmt.Fprintf(file, "**Diskussion:**\n")
+	if err != nil {
+		return err
+	}
+
+	for i := 0; i < 5; i++ {
+		_, err = fmt.Fprintf(file, "- \n")
+		if err != nil {
+			return err
+		}
+	}
+
+	_, err = fmt.Fprintf(file, "\n**Entscheidungen:**\n")
+	if err != nil {
+		return err
+	}
+
+	for i := 0; i < 3; i++ {
+		_, err = fmt.Fprintf(file, "- [ ] \n")
+		if err != nil {
+			return err
+		}
+	}
+
+	_, err = fmt.Fprintf(file, "\n**Nächste Schritte:**\n")
+	if err != nil {
+		return err
+	}
+
+	for i := 0; i < 3; i++ {
+		_, err = fmt.Fprintf(file, "- [ ] \n")
+		if err != nil {
+			return err
+		}
+	}
+
+	_, err = fmt.Fprintf(file, "\n**Release Notes:**\n```\n\n\n```\n\n")
+	if err != nil {
+		return err
+	}
+
+	_, err = fmt.Fprintf(file, "---\n\n")
+	return err
+}
+
+func (e *GitLabExporter) writeFooterSection(file *os.File) error {
+	_, err := fmt.Fprintf(file, "## 📋 Meeting Summary\n\n")
+	if err != nil {
+		return err
+	}
+
+	_, err = fmt.Fprintf(file, "### Gesammelte Action Items\n")
+	if err != nil {
+		return err
+	}
+
+	for i := 0; i < 8; i++ {
+		_, err = fmt.Fprintf(file, "- [ ] \n")
+		if err != nil {
+			return err
+		}
+	}
+
+	_, err = fmt.Fprintf(file, "\n### Follow-up Meeting\n")
+	if err != nil {
+		return err
+	}
+
+	_, err = fmt.Fprintf(file, "**Datum:** _________________  \n")
+	if err != nil {
+		return err
+	}
+
+	_, err = fmt.Fprintf(file, "**Teilnehmer:** _________________  \n")
+	if err != nil {
+		return err
+	}
+
+	_, err = fmt.Fprintf(file, "**Themen:** _________________  \n\n")
+	if err != nil {
+		return err
+	}
+
+	_, err = fmt.Fprintf(file, "### Changelog/Release Notes\n```markdown\n")
+	if err != nil {
+		return err
+	}
+
+	_, err = fmt.Fprintf(file, "## Version X.X.X\n\n### Features\n- \n\n### Fixes\n- \n\n### Changes\n- \n\n")
+	if err != nil {
+		return err
+	}
+
+	_, err = fmt.Fprintf(file, "```\n\n")
+	if err != nil {
+		return err
+	}
+
+	// Timestamp Footer
+	_, err = fmt.Fprintf(file, "---\n*Generiert am %s*\n",
+		time.Now().Format("2006-01-02 15:04:05"))
+	return err
+}
+
+// Helper functions
+func (e *GitLabExporter) getPriorityEmoji(issue Issue) string {
+	// Basierend auf Labels oder anderen Kriterien
+	labels := strings.ToLower(e.getLabelsString(issue))
+	if strings.Contains(labels, "high") || strings.Contains(labels, "urgent") {
+		return "🔴"
+	}
+	if strings.Contains(labels, "medium") {
+		return "🟡"
+	}
+	if strings.Contains(labels, "low") {
+		return "🟢"
+	}
+	return "⚪"
+}
+
+func (e *GitLabExporter) getStateEmoji(state string) string {
+	switch strings.ToLower(state) {
+	case "opened":
+		return "🔵"
+	case "closed":
+		return "✅"
+	case "merged":
+		return "🟣"
+	default:
+		return "⚪"
+	}
+}
+
+func (e *GitLabExporter) getLabelsString(issue Issue) string {
+	if len(issue.Labels.Nodes) == 0 {
+		return ""
+	}
+
+	var labels []string
+	for _, label := range issue.Labels.Nodes {
+		labels = append(labels, "`"+label.Title+"`")
+	}
+	return strings.Join(labels, " ")
+}
+
+func (e *GitLabExporter) getStateDisplayName(state string) string {
+	switch strings.ToLower(state) {
+	case "opened":
+		return "Offen"
+	case "closed":
+		return "Geschlossen"
+	case "merged":
+		return "Gemergt"
+	default:
+		return strings.ToUpper(state[:1]) + strings.ToLower(state[1:])
+	}
 }

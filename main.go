@@ -4,28 +4,11 @@ package main
 import (
 	"fmt"
 	"log"
-
-	"github.com/joho/godotenv"
 )
 
 func main() {
-	// Lade .env wenn vorhanden
-	if err := godotenv.Load(); err != nil {
-		log.Fatal("Error loading .env file.")
-	}
 
 	config := parseFlags()
-	if milestone := getEnv("MILESTONE_TITLE", ""); milestone != "" {
-		config.MilestoneTitle = &milestone
-	}
-	if assignedUser := getEnv("ASSIGNED_USER", ""); assignedUser != "" {
-		config.AssignedUser = &assignedUser
-	}
-
-	if config.Token == "" || config.ProjectPath == "" {
-		log.Fatal("GITLAB_TOKEN und PROJECT_PATH müssen gesetzt sein")
-	}
-
 	exporter := NewGitLabExporter(config)
 
 	fmt.Printf("Exportiere Issues aus %s...\n", config.ProjectPath)
@@ -50,6 +33,14 @@ func main() {
 	err = exporter.ExportToTodoistCSV(issues, config.OutputFile)
 	if err != nil {
 		log.Fatalf("Fehler beim CSV-Export: %v", err)
+	}
+
+	if config.ExportMarkdown {
+		err = exporter.ExportMarkdown(issues, config.MarkdownFile)
+		if err != nil {
+			log.Fatalf("Markdown-Export fehlgeschlagen: %v", err)
+		}
+		fmt.Printf("Markdown-Export erstellt: %s\n", config.MarkdownFile)
 	}
 
 	fmt.Printf("Export abgeschlossen: %s\n", config.OutputFile)
