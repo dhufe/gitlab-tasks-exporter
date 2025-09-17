@@ -3,7 +3,6 @@ package main
 import (
 	"net/http"
 	"os"
-	"time"
 )
 
 func (t *authTransport) RoundTrip(req *http.Request) (*http.Response, error) {
@@ -11,6 +10,7 @@ func (t *authTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	return t.base.RoundTrip(req)
 }
 
+/*
 func parseDate(dateStr string) *time.Time {
 	if dateStr == "" {
 		return nil
@@ -31,20 +31,11 @@ func parseDate(dateStr string) *time.Time {
 	}
 	return nil
 }
+*/
 
-// Hilfsfunktionen
 func getEnv(key, defaultValue string) string {
 	if value := os.Getenv(key); value != "" {
 		return value
 	}
 	return defaultValue
-}
-
-func contains(slice []string, item string) bool {
-	for _, s := range slice {
-		if s == item {
-			return true
-		}
-	}
-	return false
 }

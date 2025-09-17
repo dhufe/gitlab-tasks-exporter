@@ -10,7 +10,9 @@ import (
 
 func main() {
 	// Lade .env wenn vorhanden
-	godotenv.Load()
+	if err := godotenv.Load(); err != nil {
+		log.Fatal("Error loading .env file.")
+	}
 
 	config := parseFlags()
 	if milestone := getEnv("MILESTONE_TITLE", ""); milestone != "" {

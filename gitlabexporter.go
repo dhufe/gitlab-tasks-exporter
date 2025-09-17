@@ -165,7 +165,12 @@ func (e *GitLabExporter) ExportToTodoistCSV(issues []Issue, filename string) err
 	if err != nil {
 		return fmt.Errorf("fehler beim Erstellen der Datei: %w", err)
 	}
-	defer file.Close()
+	defer func() {
+		err = file.Close()
+		if err != nil {
+			fmt.Print("fehler beim Schliessen der Datei.")
+		}
+	}()
 
 	writer := csv.NewWriter(file)
 	defer writer.Flush()
@@ -267,7 +272,12 @@ func (e *GitLabExporter) ExportToTodoistWithStructure(issues []Issue, filename s
 	if err != nil {
 		return fmt.Errorf("fehler beim Erstellen der Datei: %w", err)
 	}
-	defer file.Close()
+	defer func() {
+		err = file.Close()
+		if err != nil {
+			fmt.Printf("fehler beim Schliessen der Datei.")
+		}
+	}()
 
 	writer := csv.NewWriter(file)
 	defer writer.Flush()
