@@ -26,7 +26,7 @@ buildproject:
   stage: build
   before_script:
     - apk update --no-cache
-    - apk add --no-cache make
+    - apk add --no-cache make zip
     - go mod tidy
   script:
     - make release 
