@@ -1,0 +1,16 @@
+# GitLab Configuration
+GITLAB_TOKEN=glpat-your-gitlab-token-here
+GITLAB_URL=https://gitlab.com
+PROJECT_PATH=your-username/your-project
+
+# Todoist Configuration
+TODOIST_TOKEN=your-todoist-token-here
+TODOIST_PROJECT=GitLab Issues
+TODOIST_API=false
+
+# Optional Filters
+#MILESTONE_TITLE=v1.0.0
+
+# Output Configuration
+OUTPUT_FILE=gitlab_issues.md
+VERBOSE=true

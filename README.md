@@ -1,1 +1,0 @@
-# gitlab-todoist-exporter
