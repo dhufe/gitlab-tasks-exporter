@@ -134,19 +134,23 @@ create_release:
       dotenv: release.env
 
   release:
-    tag_name: $VERSION
-    name: 'Release $VERSION'
+    tag_name: '$VERSION'
+    name: 'GitLab Exporter $VERSION'
     description: './release_description.md'
     assets:
       links:
-        - name: '🐧 Linux AMD64 Binary'
-          url: '$CI_PROJECT_URL/-/jobs/$CI_JOB_ID/artifacts/file/bin/releases/gitlab-exporter-linux-amd64.tar.gz'
-        - name: '🍎 macOS Intel (AMD64) Binary'
-          url: '$CI_PROJECT_URL/-/jobs/$CI_JOB_ID/artifacts/file/bin/releases/gitlab-exporter-darwin-amd64.tar.gz'
-        - name: '🍎 macOS Apple Silicon (ARM64) Binary'
-          url: '$CI_PROJECT_URL/-/jobs/$CI_JOB_ID/artifacts/file/bin/releases/gitlab-exporter-darwin-arm64.tar.gz'
-        - name: '🪟 Windows AMD64 Binary'
-          url: '$CI_PROJECT_URL/-/jobs/$CI_JOB_ID/artifacts/file/bin/releases/gitlab-exporter-windows-amd64.zip'
+        - name: 'Linux AMD64'
+          url: '$CI_PROJECT_URL/-/jobs/$CI_JOB_ID/artifacts/file/dist/gitlab-exporter-linux-amd64.tar.gz'
+          link_type: 'package'
+        - name: 'macOS Intel (AMD64)'
+          url: '$CI_PROJECT_URL/-/jobs/$CI_JOB_ID/artifacts/file/dist/gitlab-exporter-darwin-amd64.tar.gz'
+          link_type: 'package'
+        - name: 'macOS Apple Silicon (ARM64)'
+          url: '$CI_PROJECT_URL/-/jobs/$CI_JOB_ID/artifacts/file/dist/gitlab-exporter-darwin-arm64.tar.gz'
+          link_type: 'package'
+        - name: 'Windows AMD64'
+          url: '$CI_PROJECT_URL/-/jobs/$CI_JOB_ID/artifacts/file/dist/gitlab-exporter-windows-amd64.zip'
+          link_type: 'package'
 
   only:
     - main
