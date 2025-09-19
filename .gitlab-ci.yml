@@ -79,46 +79,25 @@ create_release:
   tags: [docker]
   stage: release
   dependencies:
-    - build_for_release  # Artifacts vom Build-Job laden
+    - build_for_release
   before_script:
     - apk add --no-cache git
   script:
-    # Artifacts vom Build-Job verwenden
     - echo "📦 Using pre-built artifacts:"
-    - ls -la bin/releases/  # Dein aktueller Pfad
+    - ls -la bin/releases/
 
-    # Version aus Git ermitteln
+    # Version ermitteln
     - |
       if [ -n "$CI_COMMIT_TAG" ]; then
-        VERSION=$CI_COMMIT_TAG
+        export VERSION="$CI_COMMIT_TAG"
       else
         COMMIT_SHORT=$(echo $CI_COMMIT_SHA | cut -c1-8)
-        VERSION="v1.0.0-$COMMIT_SHORT"
+        export VERSION="v1.0.0-$COMMIT_SHORT"
       fi
       echo "🚀 Version: $VERSION"
 
-    # Release-Beschreibung direkt als Variable (nicht als Datei!)
-    - |
-      export RELEASE_DESCRIPTION="🚀 Automated Release from develop→main merge
-
-      **Commit:** $(echo $CI_COMMIT_SHA | cut -c1-8)  
-      **Pipeline:** [#$CI_PIPELINE_ID]($CI_PIPELINE_URL)
-
-      ## 📦 Available Downloads
-      * 🐧 Linux AMD64
-      * 🍎 macOS Intel + Apple Silicon  
-      * 🪟 Windows AMD64
-
-      ## 🔧 Installation
-      \`\`\`bash
-      # Linux/macOS
-      tar -xzf gitlab-exporter-*.tar.gz
-      ./gitlab-exporter --help
-
-      # Windows  
-      unzip gitlab-exporter-windows-amd64.zip
-      gitlab-exporter.exe --help
-      \`\`\`"
+    # Sehr einfache Beschreibung (kein Multiline!)
+    - export RELEASE_DESCRIPTION="Automated release $VERSION from commit $(echo $CI_COMMIT_SHA | cut -c1-8)"
 
   artifacts:
     paths:
@@ -129,13 +108,13 @@ create_release:
   release:
     tag_name: '$VERSION'
     name: 'GitLab Exporter $VERSION'
-    description: '$RELEASE_DESCRIPTION'  # Variable, nicht Datei!
+    description: '$RELEASE_DESCRIPTION'
     assets:
       links:
         - name: 'Linux AMD64'
           url: '$CI_PROJECT_URL/-/jobs/$CI_JOB_ID/artifacts/file/bin/releases/gitlab-exporter-linux-amd64.tar.gz'
           link_type: 'package'
-        - name: 'macOS Intel'  
+        - name: 'macOS Intel'
           url: '$CI_PROJECT_URL/-/jobs/$CI_JOB_ID/artifacts/file/bin/releases/gitlab-exporter-darwin-amd64.tar.gz'
           link_type: 'package'
         - name: 'macOS ARM64'
@@ -146,6 +125,5 @@ create_release:
           link_type: 'package'
   only:
     - main
-
   # Optional: Automatisch bei merge oder manuell
   when: on_success  # Ändere zu "on_success" für automatische Releases
