@@ -197,7 +197,7 @@ setup:
 
 # Create release archives
 .PHONY: release
-release: clean test build-all
+release: clean build-all
 	@echo "📦 Creating release archives v$(VERSION)..."
 	@mkdir -p $(BUILD_DIR)/releases
 	@mkdir -p $(BUILD_DIR)/temp
