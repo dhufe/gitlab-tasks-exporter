@@ -65,7 +65,7 @@ build_for_release:
   script:
     - make release
     - echo "📦 Built artifacts:"
-    - ls -la dist/
+    - ls -la bin/release
   artifacts:
     paths:
       - bin/release/gitlab-exporter-*.tar.gz
