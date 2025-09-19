@@ -96,7 +96,7 @@ create_release:
         COMMIT_SHORT=$(echo $CI_COMMIT_SHA | cut -c1-8)
         VERSION="v1.0.0-$COMMIT_SHORT"  # Oder deine bevorzugte Logik
       fi
-      echo "VERSION=$VERSION" > release.env
+      
       echo "🚀 Version: $VERSION"
       
      # Release-Beschreibung als separate Datei (nicht dotenv!)
@@ -130,8 +130,6 @@ create_release:
       - bin/releases/gitlab-exporter-*.zip
       - release_description.md
     expire_in: 4 weeks
-    reports:
-      dotenv: release.env
 
   release:
     tag_name: '$VERSION'
@@ -142,16 +140,15 @@ create_release:
         - name: 'Linux AMD64'
           url: '$CI_PROJECT_URL/-/jobs/$CI_JOB_ID/artifacts/file/dist/gitlab-exporter-linux-amd64.tar.gz'
           link_type: 'package'
-        - name: 'macOS Intel (AMD64)'
+        - name: 'macOS Intel'  
           url: '$CI_PROJECT_URL/-/jobs/$CI_JOB_ID/artifacts/file/dist/gitlab-exporter-darwin-amd64.tar.gz'
           link_type: 'package'
-        - name: 'macOS Apple Silicon (ARM64)'
+        - name: 'macOS ARM64'
           url: '$CI_PROJECT_URL/-/jobs/$CI_JOB_ID/artifacts/file/dist/gitlab-exporter-darwin-arm64.tar.gz'
           link_type: 'package'
         - name: 'Windows AMD64'
           url: '$CI_PROJECT_URL/-/jobs/$CI_JOB_ID/artifacts/file/dist/gitlab-exporter-windows-amd64.zip'
           link_type: 'package'
-
   only:
     - main
 
