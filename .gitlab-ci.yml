@@ -51,7 +51,7 @@ build_project:
       - bin/release/gitlab-exporter-*.tar.gz
       - bin/release/gitlab-exporter-*.zip
     expire_in: 1 hour
-    except:
+  except:
       - main
 
 create_release:
