@@ -86,7 +86,7 @@ create_release:
     - |
       GLAB_VERSION="1.72.0"
       # GitLab verwendet andere URL-Struktur als GitHub
-      curl -L -o glab.tar.gz "https://gitlab.com/gitlab-org/cli/-/releases/v${GLAB_VERSION}/downloads/glab_${GLAB_VERSION}_Linux_x86_64.tar.gz"
+      curl -L -o glab.tar.gz "https://gitlab.com/api/v4/projects/gitlab-org%2Fcli/packages/generic/glab/1.72.0/glab_${GLAB_VERSION}_linux_amd64.tar.gz"
       tar -xzf glab.tar.gz
       chmod +x bin/glab
       mv bin/glab /usr/local/bin/
