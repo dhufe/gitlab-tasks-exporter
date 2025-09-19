@@ -204,18 +204,18 @@ release: clean build-all
 	
 	# Linux
 	@cp $(BUILD_DIR)/$(BINARY_UNIX) $(BUILD_DIR)/temp/$(BINARY_NAME)
-	@tar -czf $(BUILD_DIR)/releases/$(BINARY_NAME)-$(VERSION)-linux-amd64.tar.gz -C $(BUILD_DIR)/temp $(BINARY_NAME)
+	@tar -czf $(BUILD_DIR)/releases/$(BINARY_NAME)-linux-amd64.tar.gz -C $(BUILD_DIR)/temp $(BINARY_NAME)
 
 	# Darwin amd64
 	@cp $(BUILD_DIR)/$(BINARY_DARWIN) $(BUILD_DIR)/temp/$(BINARY_NAME)
-	@tar -czf $(BUILD_DIR)/releases/$(BINARY_NAME)-$(VERSION)-darwin-amd64.tar.gz -C $(BUILD_DIR)/temp $(BINARY_NAME)
+	@tar -czf $(BUILD_DIR)/releases/$(BINARY_NAME)-darwin-amd64.tar.gz -C $(BUILD_DIR)/temp $(BINARY_NAME)
 
 	# Darwin arm64
 	@cp $(BUILD_DIR)/$(BINARY_ARM64) $(BUILD_DIR)/temp/$(BINARY_NAME)
-	@tar -czf $(BUILD_DIR)/releases/$(BINARY_NAME)-$(VERSION)-darwin-arm64.tar.gz -C $(BUILD_DIR)/temp $(BINARY_NAME)
+	@tar -czf $(BUILD_DIR)/releases/$(BINARY_NAME)-darwin-arm64.tar.gz -C $(BUILD_DIR)/temp $(BINARY_NAME)
 	
 	# Windows
-	@cd $(BUILD_DIR) && zip -j releases/$(BINARY_NAME)-$(VERSION)-windows-amd64.zip $(BINARY_WINDOWS)
+	@cd $(BUILD_DIR) && zip -j releases/$(BINARY_NAME)-windows-amd64.zip $(BINARY_WINDOWS)
 	
 	@echo "📦 Release archives created in $(BUILD_DIR)/releases/"
 
