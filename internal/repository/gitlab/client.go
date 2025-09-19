@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"hufschlaeger.net/gitlab-tasks-exporter/internal/config"
-	gitlabDomain "hufschlaeger.net/gitlab-tasks-exporter/internal/domain/gitlab"
+	gitlabDomain "hufschlaeger.net/gitlab-tasks-exporter/internal/domain/models"
 )
 
 type Repository struct {
