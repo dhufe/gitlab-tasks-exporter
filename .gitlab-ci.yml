@@ -96,29 +96,39 @@ create_release:
         COMMIT_SHORT=$(echo $CI_COMMIT_SHA | cut -c1-8)
         VERSION="v1.0.0-$COMMIT_SHORT"  # Oder deine bevorzugte Logik
       fi
+      echo "VERSION=$VERSION" > release.env
+      echo "🚀 Version: $VERSION"
       
-      echo "VERSION=$VERSION" >> release.env
-      echo "🚀 Creating release: $VERSION"
-    
-    # Release-Beschreibung ohne Go-Dependencies
+     # Release-Beschreibung als separate Datei (nicht dotenv!)
     - |
-      echo "RELEASE_DESCRIPTION<<EOF" >> release.env
-      echo "🚀 Automated Release $VERSION" >> release.env
-      echo "" >> release.env
-      echo "**Generated from:** develop → main merge" >> release.env
-      echo "**Commit:** [\`$(echo $CI_COMMIT_SHA | cut -c1-8)\`]($CI_PROJECT_URL/-/commit/$CI_COMMIT_SHA)" >> release.env
-      echo "**Pipeline:** [#$CI_PIPELINE_ID]($CI_PIPELINE_URL)" >> release.env
-      echo "" >> release.env
-      echo "## 📦 Available Downloads" >> release.env
-      echo "* 🐧 Linux AMD64" >> release.env  
-      echo "* 🍎 macOS Intel + Apple Silicon" >> release.env
-      echo "* 🪟 Windows AMD64" >> release.env
-      echo "EOF" >> release.env
+      cat > release_description.md << 'EOF'
+      🚀 Automated Release from develop→main merge
+      
+      **Commit:** $(echo $CI_COMMIT_SHA | cut -c1-8)
+      **Pipeline:** #$CI_PIPELINE_ID
+      
+      ## 📦 Available Downloads
+      * 🐧 Linux AMD64
+      * 🍎 macOS Intel + Apple Silicon  
+      * 🪟 Windows AMD64
+      
+      ## 🔧 Installation
+      ```bash
+      # Linux/macOS
+      tar -xzf gitlab-exporter-*.tar.gz
+      ./gitlab-exporter --help
+      
+      # Windows  
+      unzip gitlab-exporter-windows-amd64.zip
+      gitlab-exporter.exe --help
+      ```
+      EOF
 
   artifacts:
     paths:
       - bin/releases/gitlab-exporter-*.tar.gz
       - bin/releases/gitlab-exporter-*.zip
+      - release_description.md
     expire_in: 4 weeks
     reports:
       dotenv: release.env
@@ -126,7 +136,7 @@ create_release:
   release:
     tag_name: $VERSION
     name: 'Release $VERSION'
-    description: $RELEASE_DESCRIPTION
+    description: './release_description.md'
     assets:
       links:
         - name: '🐧 Linux AMD64 Binary'
