@@ -83,7 +83,7 @@ create_release:
   before_script:
     - apk add --no-cache git curl
     # Neuere glab-Version manuell installieren
-  - |
+    - |
       GLAB_VERSION="1.72.0"
       # GitLab verwendet andere URL-Struktur als GitHub
       curl -L -o glab.tar.gz "https://gitlab.com/gitlab-org/cli/-/releases/v${GLAB_VERSION}/downloads/glab_${GLAB_VERSION}_Linux_x86_64.tar.gz"
