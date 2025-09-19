@@ -48,8 +48,8 @@ build_project:
     - make release 
   artifacts:
     paths:
-      - bin/release/gitlab-exporter-*.tar.gz
-      - bin/release/gitlab-exporter-*.zip
+      - bin/releases/gitlab-exporter-*.tar.gz
+      - bin/releases/gitlab-exporter-*.zip
     expire_in: 1 hour
   except:
       - main
@@ -65,11 +65,11 @@ build_for_release:
   script:
     - make release
     - echo "📦 Built artifacts:"
-    - ls -la bin/release
+    - ls -la bin/releases
   artifacts:
     paths:
-      - bin/release/gitlab-exporter-*.tar.gz
-      - bin/release/gitlab-exporter-*.zip
+      - bin/releases/gitlab-exporter-*.tar.gz
+      - bin/releases/gitlab-exporter-*.zip
     expire_in: 1 hour
   only:
     - main
@@ -117,8 +117,8 @@ create_release:
 
   artifacts:
     paths:
-      - bin/release/gitlab-exporter-*.tar.gz
-      - bin/release/gitlab-exporter-*.zip
+      - bin/releases/gitlab-exporter-*.tar.gz
+      - bin/releases/gitlab-exporter-*.zip
     expire_in: 4 weeks
     reports:
       dotenv: release.env
@@ -130,16 +130,16 @@ create_release:
     assets:
       links:
         - name: '🐧 Linux AMD64 Binary'
-          url: '$CI_PROJECT_URL/-/jobs/$CI_JOB_ID/artifacts/file/bin/release/gitlab-exporter-linux-amd64.tar.gz'
+          url: '$CI_PROJECT_URL/-/jobs/$CI_JOB_ID/artifacts/file/bin/releases/gitlab-exporter-linux-amd64.tar.gz'
         - name: '🍎 macOS Intel (AMD64) Binary'
-          url: '$CI_PROJECT_URL/-/jobs/$CI_JOB_ID/artifacts/file/bin/release/gitlab-exporter-darwin-amd64.tar.gz'
+          url: '$CI_PROJECT_URL/-/jobs/$CI_JOB_ID/artifacts/file/bin/releases/gitlab-exporter-darwin-amd64.tar.gz'
         - name: '🍎 macOS Apple Silicon (ARM64) Binary'
-          url: '$CI_PROJECT_URL/-/jobs/$CI_JOB_ID/artifacts/file/bin/release/gitlab-exporter-darwin-arm64.tar.gz'
+          url: '$CI_PROJECT_URL/-/jobs/$CI_JOB_ID/artifacts/file/bin/releases/gitlab-exporter-darwin-arm64.tar.gz'
         - name: '🪟 Windows AMD64 Binary'
-          url: '$CI_PROJECT_URL/-/jobs/$CI_JOB_ID/artifacts/file/bin/release/gitlab-exporter-windows-amd64.zip'
+          url: '$CI_PROJECT_URL/-/jobs/$CI_JOB_ID/artifacts/file/bin/releases/gitlab-exporter-windows-amd64.zip'
 
   only:
     - main
 
   # Optional: Automatisch bei merge oder manuell
-  when: manual  # Ändere zu "on_success" für automatische Releases
+  when: on_success  # Ändere zu "on_success" für automatische Releases
