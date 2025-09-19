@@ -106,7 +106,7 @@ create_release:
     expire_in: 4 weeks
 
   release:
-    tag_name: '$VERSION'
+    tag_name: '$CI_COMMIT_TAG'
     name: 'GitLab Exporter $VERSION'
     description: '$RELEASE_DESCRIPTION'
 
