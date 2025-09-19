@@ -109,20 +109,7 @@ create_release:
     tag_name: '$VERSION'
     name: 'GitLab Exporter $VERSION'
     description: '$RELEASE_DESCRIPTION'
-    assets:
-      links:
-        - name: 'Linux AMD64'
-          url: '$CI_PROJECT_URL/-/jobs/$CI_JOB_ID/artifacts/file/bin/releases/gitlab-exporter-linux-amd64.tar.gz'
-          link_type: 'package'
-        - name: 'macOS Intel'
-          url: '$CI_PROJECT_URL/-/jobs/$CI_JOB_ID/artifacts/file/bin/releases/gitlab-exporter-darwin-amd64.tar.gz'
-          link_type: 'package'
-        - name: 'macOS ARM64'
-          url: '$CI_PROJECT_URL/-/jobs/$CI_JOB_ID/artifacts/file/bin/releases/gitlab-exporter-darwin-arm64.tar.gz'
-          link_type: 'package'
-        - name: 'Windows AMD64'
-          url: '$CI_PROJECT_URL/-/jobs/$CI_JOB_ID/artifacts/file/bin/releases/gitlab-exporter-windows-amd64.zip'
-          link_type: 'package'
+
   only:
     - main
   # Optional: Automatisch bei merge oder manuell
