@@ -85,7 +85,7 @@ create_release:
   script:
     # Keine Go-Builds hier, nur Artifacts verwenden
     - echo "📦 Using pre-built artifacts:"
-    - ls -la dist/
+    - ls -la bin/releases
     
     # Version aus Git ermitteln (ohne Go)
     - |
