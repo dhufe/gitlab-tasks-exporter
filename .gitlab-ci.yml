@@ -1,5 +1,6 @@
 stages:
   - lint
+  - test
   - build
   - release
 
@@ -20,7 +21,22 @@ linting:
       - gl-code-quality-report.json
   allow_failure: false
 
-buildproject:
+test_project:
+  image: docker.io/golang:alpine
+  tags: [docker]
+  stage: test
+  before_script:
+    - apk update --no-cache
+    - go install gotest.tools/gotestsum@latest
+    - go mod tidy
+  script:
+    - gotestsum --junitfile report.xml --format testname
+  artifacts:
+    when: always
+    reports:
+      junit: report.xml
+
+build_project:
   image: docker.io/golang:alpine
   tags: [docker]
   stage: build
