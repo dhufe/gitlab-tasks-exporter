@@ -212,9 +212,9 @@ func (e *Exporter) syncIssuesToTasks(issues []gitlabDomain.Issue, projectID stri
 
 	// Statistiken ausgeben
 	fmt.Printf("\n🎉 Synchronisation abgeschlossen:\n")
-	fmt.Printf("   ✅ Erstellt: %d\n", stats.created)
-	fmt.Printf("   🔄 Aktualisiert: %d\n", stats.updated)
-	fmt.Printf("   ⏭️  Übersprungen: %d\n", stats.skipped)
+	fmt.Printf("  ✅  Erstellt: %d\n", stats.created)
+	fmt.Printf("  🔄  Aktualisiert: %d\n", stats.updated)
+	fmt.Printf("  ⏭️  Übersprungen: %d\n", stats.skipped)
 
 	return nil
 }
