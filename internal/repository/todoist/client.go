@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"hufschlaeger.net/gitlab-tasks-exporter/internal/config"
-	todoistDomain "hufschlaeger.net/gitlab-tasks-exporter/internal/domain/todoist"
+	todoistDomain "hufschlaeger.net/gitlab-tasks-exporter/internal/domain/models"
 )
 
 type Repository struct {

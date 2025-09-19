@@ -47,7 +47,7 @@ func NewConfig() (*Config, error) {
 		cfg.printDebugInfo()
 	}
 
-	return cfg, cfg.Validate()
+	return cfg, nil
 }
 
 func (c *Config) printDebugInfo() {
