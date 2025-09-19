@@ -10,7 +10,6 @@ import (
 
 // ParseFlags parst Command-Line Arguments und ENV-Konfiguration
 func ParseFlags() (*config.Config, error) {
-	// 1. Basis-Konfiguration aus .env laden
 	cfg, err := config.NewConfig()
 	if err != nil {
 		return nil, err
@@ -35,6 +34,10 @@ func ParseFlags() (*config.Config, error) {
 	if *help {
 		printUsage()
 		os.Exit(0)
+	}
+
+	if err = cfg.Validate(); err != nil {
+		return nil, err
 	}
 
 	// 3. CLI-Flags anwenden (überschreiben .env-Werte)

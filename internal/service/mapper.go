@@ -5,8 +5,7 @@ import (
 	"strings"
 
 	"hufschlaeger.net/gitlab-tasks-exporter/internal/config"
-	gitlabDomain "hufschlaeger.net/gitlab-tasks-exporter/internal/domain/gitlab"
-	todoistDomain "hufschlaeger.net/gitlab-tasks-exporter/internal/domain/todoist"
+	todoistDomain "hufschlaeger.net/gitlab-tasks-exporter/internal/domain/models"
 	"hufschlaeger.net/gitlab-tasks-exporter/pkg/utils"
 )
 
@@ -19,7 +18,7 @@ func NewMapper(cfg *config.Config) *Mapper {
 }
 
 // GitLabToTodoistTask konvertiert GitLab Issue zu Todoist Task
-func (m *Mapper) GitLabToTodoistTask(issue gitlabDomain.Issue, projectID string, sectionID string) todoistDomain.CreateTaskRequest {
+func (m *Mapper) GitLabToTodoistTask(issue todoistDomain.Issue, projectID string, sectionID string) todoistDomain.CreateTaskRequest {
 	// Title mit Issue-Nummer
 	title := fmt.Sprintf("#%s - %s", issue.IID, issue.Title)
 
@@ -50,7 +49,7 @@ func (m *Mapper) GitLabToTodoistTask(issue gitlabDomain.Issue, projectID string,
 }
 
 // buildTaskDescription erstellt eine strukturierte Task-Beschreibung
-func (m *Mapper) buildTaskDescription(issue gitlabDomain.Issue) string {
+func (m *Mapper) buildTaskDescription(issue todoistDomain.Issue) string {
 	var parts []string
 
 	// GitLab Link
@@ -90,7 +89,7 @@ func (m *Mapper) buildTaskDescription(issue gitlabDomain.Issue) string {
 }
 
 // extractLabels extrahiert Labels für Todoist
-func (m *Mapper) extractLabels(issue gitlabDomain.Issue) []string {
+func (m *Mapper) extractLabels(issue todoistDomain.Issue) []string {
 	var labels []string
 
 	for _, label := range issue.Labels.Nodes {
@@ -111,7 +110,7 @@ func (m *Mapper) extractLabels(issue gitlabDomain.Issue) []string {
 }
 
 // determinePriority bestimmt Todoist Priority basierend auf GitLab Labels
-func (m *Mapper) determinePriority(issue gitlabDomain.Issue) int {
+func (m *Mapper) determinePriority(issue todoistDomain.Issue) int {
 	for _, label := range issue.Labels.Nodes {
 		labelLower := strings.ToLower(label.Title)
 
@@ -148,7 +147,7 @@ func (m *Mapper) BuildProjectName(projectPath string, milestoneTitle *string) st
 }
 
 // DetermineSectionID bestimmt die richtige Section basierend auf Issue State
-func (m *Mapper) DetermineSectionID(issue gitlabDomain.Issue, sections map[string]string) string {
+func (m *Mapper) DetermineSectionID(issue todoistDomain.Issue, sections map[string]string) string {
 	if issue.State == "closed" {
 		if sectionID, exists := sections["closed"]; exists {
 			return sectionID

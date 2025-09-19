@@ -7,8 +7,7 @@ import (
 	"time"
 
 	"hufschlaeger.net/gitlab-tasks-exporter/internal/config"
-	gitlabDomain "hufschlaeger.net/gitlab-tasks-exporter/internal/domain/gitlab"
-	todoistDomain "hufschlaeger.net/gitlab-tasks-exporter/internal/domain/todoist"
+	todoistDomain "hufschlaeger.net/gitlab-tasks-exporter/internal/domain/models"
 	gitlabRepo "hufschlaeger.net/gitlab-tasks-exporter/internal/repository/gitlab"
 	todoistRepo "hufschlaeger.net/gitlab-tasks-exporter/internal/repository/todoist"
 	"hufschlaeger.net/gitlab-tasks-exporter/pkg/utils"
@@ -60,7 +59,7 @@ func (e *Exporter) Export() error {
 	return e.exportToFile(issues)
 }
 
-func (e *Exporter) loadGitLabIssues() ([]gitlabDomain.Issue, error) {
+func (e *Exporter) loadGitLabIssues() ([]todoistDomain.Issue, error) {
 	// Verbindung testen
 	if err := e.gitlabRepo.ValidateConnection(); err != nil {
 		return nil, fmt.Errorf("GitLab-Verbindung fehlgeschlagen: %w", err)
@@ -77,7 +76,7 @@ func (e *Exporter) loadGitLabIssues() ([]gitlabDomain.Issue, error) {
 }
 
 // exportToTodoist exportiert Issues zu Todoist
-func (e *Exporter) exportToTodoist(issues []gitlabDomain.Issue) error {
+func (e *Exporter) exportToTodoist(issues []todoistDomain.Issue) error {
 	fmt.Println("🚀 Exportiere zu Todoist...")
 
 	// 1. Todoist-Verbindung testen
@@ -198,7 +197,7 @@ func (e *Exporter) loadExistingTasks(projectID string) (map[string]*todoistDomai
 }
 
 // syncIssuesToTasks synchronisiert GitLab Issues mit Todoist Tasks
-func (e *Exporter) syncIssuesToTasks(issues []gitlabDomain.Issue, projectID string, sections map[string]string, existingTasks map[string]*todoistDomain.Task) error {
+func (e *Exporter) syncIssuesToTasks(issues []todoistDomain.Issue, projectID string, sections map[string]string, existingTasks map[string]*todoistDomain.Task) error {
 	stats := struct {
 		created, updated, skipped int
 	}{}
@@ -212,15 +211,15 @@ func (e *Exporter) syncIssuesToTasks(issues []gitlabDomain.Issue, projectID stri
 
 	// Statistiken ausgeben
 	fmt.Printf("\n🎉 Synchronisation abgeschlossen:\n")
-	fmt.Printf("   ✅ Erstellt: %d\n", stats.created)
-	fmt.Printf("   🔄 Aktualisiert: %d\n", stats.updated)
-	fmt.Printf("   ⏭️  Übersprungen: %d\n", stats.skipped)
+	fmt.Printf("  ✅  Erstellt: %d\n", stats.created)
+	fmt.Printf("  🔄  Aktualisiert: %d\n", stats.updated)
+	fmt.Printf("  ⏭️  Übersprungen: %d\n", stats.skipped)
 
 	return nil
 }
 
 // syncSingleIssue synchronisiert ein einzelnes Issue
-func (e *Exporter) syncSingleIssue(issue gitlabDomain.Issue, projectID string, sections map[string]string, existingTasks map[string]*todoistDomain.Task, stats *struct{ created, updated, skipped int }) error {
+func (e *Exporter) syncSingleIssue(issue todoistDomain.Issue, projectID string, sections map[string]string, existingTasks map[string]*todoistDomain.Task, stats *struct{ created, updated, skipped int }) error {
 	existingTask := existingTasks[issue.IID]
 
 	// Section für Issue bestimmen
@@ -236,7 +235,7 @@ func (e *Exporter) syncSingleIssue(issue gitlabDomain.Issue, projectID string, s
 }
 
 // createNewTask erstellt einen neuen Todoist Task
-func (e *Exporter) createNewTask(issue gitlabDomain.Issue, projectID string, sectionID string, stats *struct{ created, updated, skipped int }) error {
+func (e *Exporter) createNewTask(issue todoistDomain.Issue, projectID string, sectionID string, stats *struct{ created, updated, skipped int }) error {
 	taskRequest := e.mapper.GitLabToTodoistTask(issue, projectID, sectionID)
 
 	createdTask, err := e.todoistRepo.CreateTask(taskRequest)
@@ -252,7 +251,7 @@ func (e *Exporter) createNewTask(issue gitlabDomain.Issue, projectID string, sec
 }
 
 // updateExistingTask aktualisiert einen bestehenden Task falls nötig
-func (e *Exporter) updateExistingTask(issue gitlabDomain.Issue, existingTask *todoistDomain.Task, sectionID string, stats *struct{ created, updated, skipped int }) error {
+func (e *Exporter) updateExistingTask(issue todoistDomain.Issue, existingTask *todoistDomain.Task, sectionID string, stats *struct{ created, updated, skipped int }) error {
 	updates := make(map[string]interface{})
 	needsUpdate := false
 
@@ -294,7 +293,7 @@ func (e *Exporter) updateExistingTask(issue gitlabDomain.Issue, existingTask *to
 }
 
 // exportToFile exportiert Issues in eine Markdown-Datei
-func (e *Exporter) exportToFile(issues []gitlabDomain.Issue) error {
+func (e *Exporter) exportToFile(issues []todoistDomain.Issue) error {
 	fmt.Println("📄 Exportiere zu Markdown-Datei...")
 
 	filename := e.generateFilename()
@@ -327,7 +326,7 @@ func (e *Exporter) generateFilename() string {
 }
 
 // generateMarkdownContent generiert Markdown-Content
-func (e *Exporter) generateMarkdownContent(issues []gitlabDomain.Issue) string {
+func (e *Exporter) generateMarkdownContent(issues []todoistDomain.Issue) string {
 	var content strings.Builder
 
 	// Header
@@ -361,7 +360,7 @@ func (e *Exporter) generateMarkdownContent(issues []gitlabDomain.Issue) string {
 }
 
 // formatIssueAsMarkdown formatiert ein Issue als Markdown
-func (e *Exporter) formatIssueAsMarkdown(issue gitlabDomain.Issue) string {
+func (e *Exporter) formatIssueAsMarkdown(issue todoistDomain.Issue) string {
 	var content strings.Builder
 
 	// Title mit Link
@@ -427,8 +426,8 @@ func extractIssueIIDFromContent(content string) string {
 	return ""
 }
 
-func filterIssuesByState(issues []gitlabDomain.Issue, state string) []gitlabDomain.Issue {
-	var filtered []gitlabDomain.Issue
+func filterIssuesByState(issues []todoistDomain.Issue, state string) []todoistDomain.Issue {
+	var filtered []todoistDomain.Issue
 	for _, issue := range issues {
 		if issue.State == state {
 			filtered = append(filtered, issue)
