@@ -42,7 +42,7 @@ build_project:
   stage: build
   before_script:
     - apk update --no-cache
-    - apk add --no-cache make zip golangci-lint
+    - apk add --no-cache make zip 
     - go mod tidy
   script:
     - make release 
@@ -54,37 +54,53 @@ build_project:
   except:
       - main
 
+build_for_release:
+  image: docker.io/golang:alpine
+  tags: [docker]
+  stage: build
+  before_script:
+    - apk update --no-cache
+    - apk add --no-cache make zip git
+    - go mod tidy
+  script:
+    - make release
+    - echo "📦 Built artifacts:"
+    - ls -la dist/
+  artifacts:
+    paths:
+      - bin/release/gitlab-exporter-*.tar.gz
+      - bin/release/gitlab-exporter-*.zip
+    expire_in: 1 hour
+  only:
+    - main
+
 create_release:
   image: registry.gitlab.com/gitlab-org/release-cli:latest
   tags: [docker]
   stage: release
+  dependencies:
+    - build_for_release  # Artifacts vom Build-Job laden
   before_script:
-    - apk add --no-cache make zip go git
-    - go mod tidy
+    - apk add --no-cache git
   script:
-    # Build erstellen
-    - make release
-
-    # Version aus Git-Tag oder fallback
+    # Keine Go-Builds hier, nur Artifacts verwenden
+    - echo "📦 Using pre-built artifacts:"
+    - ls -la dist/
+    
+    # Version aus Git ermitteln (ohne Go)
     - |
       if [ -n "$CI_COMMIT_TAG" ]; then
-        # Pipeline wurde durch Tag ausgelöst
         VERSION=$CI_COMMIT_TAG
       else
-        # Kein Tag vorhanden, letzten Tag + Commit verwenden
-        LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+        # Alternative: aus Makefile oder Commit ableiten
         COMMIT_SHORT=$(echo $CI_COMMIT_SHA | cut -c1-8)
-        VERSION="$LAST_TAG-$COMMIT_SHORT"
+        VERSION="v1.0.0-$COMMIT_SHORT"  # Oder deine bevorzugte Logik
       fi
       
       echo "VERSION=$VERSION" >> release.env
       echo "🚀 Creating release: $VERSION"
-
-    # Artefakte auflisten
-    - echo "📦 Generated artifacts:"
-    - ls -la bin/release/
-
-    # Release-Beschreibung erstellen
+    
+    # Release-Beschreibung ohne Go-Dependencies
     - |
       echo "RELEASE_DESCRIPTION<<EOF" >> release.env
       echo "🚀 Automated Release $VERSION" >> release.env
@@ -93,17 +109,10 @@ create_release:
       echo "**Commit:** [\`$(echo $CI_COMMIT_SHA | cut -c1-8)\`]($CI_PROJECT_URL/-/commit/$CI_COMMIT_SHA)" >> release.env
       echo "**Pipeline:** [#$CI_PIPELINE_ID]($CI_PIPELINE_URL)" >> release.env
       echo "" >> release.env
-      echo "## 📋 Recent Changes" >> release.env
-      git log --oneline --pretty=format:"* %s" $(git describe --tags --abbrev=0 2>/dev/null || echo "HEAD~10")..HEAD >> release.env
-      echo "" >> release.env
-      echo "" >> release.env
-      echo "## 📦 Installation" >> release.env
-      echo "\`\`\`bash" >> release.env
-      echo "# Download for your platform:" >> release.env
-      echo "curl -L $CI_PROJECT_URL/-/jobs/$CI_JOB_ID/artifacts/file/bin/release/gitlab-exporter-linux-amd64.tar.gz" >> release.env
-      echo "tar -xzf gitlab-exporter-linux-amd64.tar.gz" >> release.env
-      echo "./gitlab-exporter-linux-amd64 --help" >> release.env
-      echo "\`\`\`" >> release.env
+      echo "## 📦 Available Downloads" >> release.env
+      echo "* 🐧 Linux AMD64" >> release.env  
+      echo "* 🍎 macOS Intel + Apple Silicon" >> release.env
+      echo "* 🪟 Windows AMD64" >> release.env
       echo "EOF" >> release.env
 
   artifacts:
