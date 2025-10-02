@@ -1,0 +1,57 @@
+name: Release on develop → main merge
+
+on:
+  pull_request:
+    types: [closed]
+    branches:
+      - main
+
+jobs:
+  release:
+    if: >-
+      github.event.pull_request.merged == true &&
+      github.event.pull_request.base.ref == 'main' &&
+      github.event.pull_request.head.ref == 'develop'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Install build dependencies
+        run: |
+          make deps
+
+      - name: Build release archives
+        run: |
+          make release
+
+      - name: Compute tag and release name
+        id: meta
+        run: |
+          TAG="v$(date -u +'%Y.%m.%d-%H%M')"
+          NAME="GitLab Tasks Exporter ${TAG}"
+          echo "TAG=${TAG}" >> $GITHUB_ENV
+          echo "NAME=${NAME}" >> $GITHUB_ENV
+
+      - name: Create GitHub Release and upload assets
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.TAG }}
+          name: ${{ env.NAME }}
+          body_path: release_description.md
+          draft: false
+          prerelease: false
+          files: |
+            bin/releases/*.tar.gz
+            bin/releases/*.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
