@@ -47,7 +47,7 @@ jobs:
         with:
           tag_name: ${{ env.TAG }}
           name: ${{ env.NAME }}
-          body_path: release_description.md
+          body: "📝 Release notes will be added manually after publishing."
           draft: false
           prerelease: false
           files: |
